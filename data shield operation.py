@@ -49,7 +49,7 @@ def decode_messages(text):
             result['hex'].append(f'{hex_code} -> Ошибка декодирования!')
 
     #rot13
-    rot_codes = re.findall(r'ROT13:\s*([A-Za-z0-9\s.,!?;:\'"\-\(\)]*)', text)
+    rot_codes = re.findall(r'ROT13:\s*([A-Za-z0-9 .,!?;:\'"\-\(\)]*)', text)
     for rot in rot_codes:
         rot_str = codecs.decode(rot, 'rot13')
         result['rot13'].append(f'{rot} -> {rot_str}')

@@ -2,8 +2,10 @@
 import re
 import base64
 import codecs
-with open('text.txt', 'r', encoding='utf-8') as f:
+with open('data_leak_sample.txt', 'r', encoding='utf-8') as f:
     main_text = f.read()
+
+
 def decode_messages(text):
     """
     finds and decrypts messages
@@ -52,3 +54,22 @@ def decode_messages(text):
         rot_str = codecs.decode(rot, 'rot13')
         result['rot13'].append(f'{rot} -> {rot_str}')
     return result
+
+
+def normalize_and_validate(text):
+    """
+    Brings the data to a single format and check it
+    :param text: text to normalize
+    :return: {
+        'phones': {'valid': [], 'invalid': []},
+        'dates': {'normalized': [], 'invalid': []},
+        'inn': {'valid': [], 'invalid': []},
+        'cards': {'valid': [], 'invalid': []}
+    }
+    """
+    result = {
+        'phones': {'valid': [], 'invalid': []},
+        'dates': {'normalized': [], 'invalid': []},
+        'inn': {'valid': [], 'invalid': []},
+        'cards': {'valid': [], 'invalid': []}
+    }

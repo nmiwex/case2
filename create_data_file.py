@@ -1,4 +1,6 @@
-# Конфиденциальные данные - утечка базы MegaSecure Corp
+# create_data_file.py
+
+data = """# Конфиденциальные данные - утечка базы MegaSecure Corp
 # Дата обнаружения: 25.02.2026
 
 === ПЛАТЕЖНЫЕ ДАННЫЕ КЛИЕНТОВ ===
@@ -91,3 +93,9 @@ ROT13: FrpergXrl:12345
 Номер клиента: 12345678
 Счет: 40817810099910004312
 БИК: 044525225
+"""
+
+with open("data_leak_sample.txt", "w", encoding="utf-8") as file:
+    file.write(data)
+
+print("Файл успешно создан ✅")

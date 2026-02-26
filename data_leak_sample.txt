@@ -45,9 +45,9 @@ CVV: 135
 
 === API-КЛЮЧИ И ДОСТУПЫ ===
 
-Production API Key: sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K
-Test API Key: pk_test_4eC39HqLyjWDarjtT1zdp7dc
-Secret Key: sk_test_51abc123def456ghi789jkl012mno345pqr678
+FAKE KEY FOR EDUCATION: fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j
+TestFAKE API Key: test_pk_test_4eC39HqLyjWDarjtT1zdp7dc
+SecretFAKE Key: mock_sk_test_51abc123def456ghi789jkl012mno345pqr678
 
 === ПАРОЛИ ПОЛЬЗОВАТЕЛЕЙ ===
 

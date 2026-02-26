@@ -22,7 +22,7 @@ def decode_messages(text):
             b64_bytes = base64.b64decode(b64)
             b64_str =b64_bytes.decode('utf-8')
             result['base64'].append(f'{b64} -> {b64_str}')
-        except UnicodeDecodeError:
+        except Exception:
             result['base64'].append(f'{b64} -> Ошибка декодирования!')
 
     #hex 0x.. codes
@@ -35,7 +35,7 @@ def decode_messages(text):
             hex_bytes = bytes.fromhex(clean_hex)
             hex_str = hex_bytes.decode('utf-8')
             result['hex'].append(f'{hex_code} -> {hex_str}')
-        except UnicodeDecodeError:
+        except Exception:
             result['hex'].append(f'{hex_code} -> Ошибка декодирования!')
     for hex_code in hex_type2:
         try:
@@ -43,7 +43,7 @@ def decode_messages(text):
             hex_bytes = bytes.fromhex(clean_hex)
             hex_str = hex_bytes.decode('utf-8')
             result['hex'].append(f'{hex_code} -> {hex_str}')
-        except UnicodeDecodeError:
+        except Exception:
             result['hex'].append(f'{hex_code} -> Ошибка декодирования!')
 
     #rot13

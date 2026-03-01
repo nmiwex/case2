@@ -192,3 +192,48 @@ def normalize_and_validate(text):
 
     return result
 print(normalize_and_validate(main_text))
+
+#the moon algorithm
+def moon_algoritm(card):
+    """
+    :param card: the line with the card number
+    :type card: str
+    :return: None
+    """
+    digit = [int(d) for d in card]
+
+    ood_digit = digit[::2]
+    even_digit = digit[1::2]
+
+    checksum = sum(even_digit)
+
+    for d in ood_digit:
+        d *= 2
+
+        if d > 9:
+            d -= 9
+        checksum += d
+
+    return checksum % 10 == 0
+
+#card numbers
+def find_num_card(numbers):
+    """
+    Searches for bank card numbers
+    :param numbers: text to search in
+    :return: {'card numbers: {'valid': [], 'invalid': []}'}
+    """
+    result_list = {'valid': [], 'invalid': []}
+    card_numbers = re.findall(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}[\s./\\-]?\d{4}[\s./\\-]?\d{4})', numbers)
+
+    for card in card_numbers:
+        clean_card = re.sub(r'[^\d]', '', card)
+
+        if len(clean_card) == 16 and moon_algoritm(clean_card):
+            result_list['valid'].append(clean_card)
+        else:
+            result_list['invalid'].append(clean_card)
+
+    return result_list
+
+result_list = find_num_card(main_text)

@@ -196,6 +196,7 @@ print(normalize_and_validate(main_text))
 #the moon algorithm
 def moon_algoritm(card):
     """
+    Сhecking cards for valid and invalid
     :param card: the line with the card number
     :type card: str
     :return: None

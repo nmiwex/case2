@@ -199,7 +199,7 @@ def moon_algoritm(card):
     Сhecking cards for valid and invalid
     :param card: the line with the card number
     :type card: str
-    :return: None
+    :return: checksum % 10 == 0
     """
     digit = [int(d) for d in card]
 

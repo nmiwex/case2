@@ -250,3 +250,72 @@ def normalize_and_validate(text):
     return result
 print(normalize_and_validate(main_text))
 
+def analyze_logs(log_text):
+    """
+    Analyzes web server logs and detects possible attacks.
+    :param log_text: full log text
+    :type log_text: str
+    :return: dictionary with detected attacks
+    """
+    result = {
+        'sql_injections': [],
+        'xss_attempts': [],
+        'suspicious_user_agents': [],
+        'failed_logins': []
+    }
+    sql_patterns = [
+        r'\bor\s+1=1\b',
+        r'\bunion\s+select\b',
+        r'\bdrop\s+table\b',
+        r'\bselect\s+\*\s+from\b',
+        r'\'--'
+    ]
+    xss_patterns = [
+        r'<script.*?>.*?</script>',
+        r'javascript:',
+        r'onerror=',
+        r'alert\s*\('
+    ]
+    user_agent_patterns = [
+        r'sqlmap',
+        r'curl',
+        r'wget',
+        r'python-requests',
+        r'nikto',
+        r'bot'
+    ]
+    failed_login_patterns = [
+        r'failed login',
+        r'401',
+        r'unauthorized',
+        r'invalid password',
+        r'authentication failed'
+    ]
+    lines = log_text.split('\n')
+
+    for line in lines:
+        for pattern in sql_patterns:
+            if re.search(pattern, line, re.IGNORECASE):
+                if line not in result['sql_injections']:
+                    result['sql_injections'].append(line)
+                break
+
+        for pattern in xss_patterns:
+            if re.search(pattern, line, re.IGNORECASE):
+                if line not in result['xss_attempts']:
+                    result['xss_attempts'].append(line)
+                break
+
+        for pattern in user_agent_patterns:
+            if re.search(pattern, line, re.IGNORECASE):
+                if line not in result['suspicious_user_agents']:
+                    result['suspicious_user_agents'].append(line)
+                break
+
+        for pattern in failed_login_patterns:
+            if re.search(pattern, line, re.IGNORECASE):
+                if line not in result['failed_logins']:
+                    result['failed_logins'].append(line)
+                break
+
+    return result

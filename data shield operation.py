@@ -4,7 +4,7 @@ import base64
 import codecs
 import binascii
 from datetime import datetime
-with open('data_leak_sample.txt', 'r', encoding='utf-8') as f:
+with open('input1.txt', 'r', encoding='utf-8') as f:
     main_text = f.read()
 
 
@@ -81,11 +81,11 @@ def decode_messages(text):
         try:
             b64_bytes = base64.b64decode(b64)
             b64_str =b64_bytes.decode('utf-8')
-            result['base64'].append(f'{b64} -> {b64_str}')
+            result['base64'].append(b64_str)
         except binascii.Error:
-            result['base64'].append(f'{b64} -> Некорректный формат Base64')
+            result['base64'].append('Некорректный формат Base64')
         except UnicodeDecodeError:
-            result['base64'].append(f'{b64} -> Ошибка декодирования')
+            result['base64'].append('Ошибка декодирования')
 
     #hex 0x.. codes
     hex_type1 = re.findall(r'Hex:\s*(0x[0-9A-Fa-f]+)', text)
@@ -97,19 +97,19 @@ def decode_messages(text):
             clean_hex = hex_code.replace('0x', '').replace('\\x', '')
             hex_bytes = bytes.fromhex(clean_hex)
             hex_str = hex_bytes.decode('utf-8')
-            result['hex'].append(f'{hex_code} -> {hex_str}')
+            result['hex'].append(hex_str)
         except ValueError:
-            result['hex'].append(f'{hex_code} -> Ошибка: нечетное количество'
-                                 f' символов или недопустимые знаки')
+            result['hex'].append('Ошибка: нечетное количество символов '
+                                 'или недопустимые знаки')
         except UnicodeDecodeError:
-            result['hex'].append(f'{hex_code} -> Ошибка декодирования: '
+            result['hex'].append('Ошибка декодирования: '
                                  f'Содержит нечитаемые бинарные данные')
 
     #rot13
     for _ in re.finditer(r'ROT13:\s*([A-Za-z0-9 .,!?;:\'"\-\(\)]*)', text):
         rot = _.group(1)
         rot_str = codecs.decode(rot, 'rot13')
-        result['rot13'].append(f'{rot} -> {rot_str}')
+        result['rot13'].append(rot_str)
     return result
 
 
@@ -144,6 +144,7 @@ def normalize_and_validate(text):
             add_unique(normalized_phone, result['phones']['valid'])
         else:
             add_unique(phone, result['phones']['invalid'])
+
     for _ in re.finditer(r'\b9[0-9 \(\)\-]{9,16}', text):
         phone = _.group(0)
         digits = re.sub(r'\D', '', phone)
@@ -205,6 +206,8 @@ def normalize_and_validate(text):
             except Exception:
                 return None
         return None
+
+
     formats = [
         '%d.%m.%Y', '%d/%m/%Y', '%d-%m-%Y', '%Y.%m.%d', '%Y-%m-%d',
         '%Y/%m/%d', '%m.%d.%Y', '%m/%d/%Y', '%m-%d-%Y', '%d %B %Y',
@@ -249,8 +252,6 @@ def normalize_and_validate(text):
 
     return result
 print(normalize_and_validate(main_text))
-
-import re
 
 
 def analyze_logs(log_text):
@@ -303,7 +304,6 @@ def analyze_logs(log_text):
     lines = log_text.split('\n')
 
     for line in lines:
-
         for pattern in sql_patterns:
             if re.search(pattern, line, re.IGNORECASE):
                 if line not in result['sql_injections']:
@@ -329,3 +329,59 @@ def analyze_logs(log_text):
                 break
 
     return result
+print(analyze_logs(main_text))
+
+def generate_comprehensive_report(text):
+    """Generate a full investigation report"""
+    report_res = { 'financial_data': find_and_validate_credit_cards(text),
+               #'secrets': find_secrets(text),
+               #'system_info': find_system_info(text),
+               'encoded_messages': decode_messages(text),
+               'security_threats': analyze_logs(text),
+               'normalized_data': normalize_and_validate(text)
+               }
+    return report_res
+
+def print_report(report_data):
+    """Demonstrate the report beautifully"""
+    sections = [("ФИНАНСОВЫЕ ДАННЫЕ", report_data['financial_data']),
+                ("РАСШИФРОВАННЫЕ СООБЩЕНИЯ", report_data['encoded_messages']),
+                ("УГРОЗЫ БЕЗОПАСНОСТИ", report['security_threats']),
+                ("НОРМАЛИЗОВАННЫЕ ДАННЫЕ", report_data['normalized_data'])]
+    with open('result1.txt', 'w', encoding='utf-8') as file:
+        file.write('=' * 50)
+        file.write("ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'")
+        file.write('=' * 50)
+        total_sum = ['']
+
+
+        def find_artifacts(art, key=None):
+            if art is None:
+                file.write(f'\nНичего не найдено')
+            if isinstance(art, dict):
+                for k, v in art.items():
+                    if v:
+                        file.write(f'\n✰{k.upper()}')
+                    find_artifacts(v, key=k)
+                return
+            if isinstance(art, list):
+                for item in art:
+                    find_artifacts(item)
+                return
+            if isinstance(art, str):
+                file.write(f'\n{art}')
+                total_sum.append(art)
+
+
+        for title, data in sections:
+            file.write(f'\n{title}:')
+            find_artifacts(data)
+            file.write('\n' + '-' * 30)
+        file.write(f'\n Всего артефактов: {len(total_sum) - 1}')
+
+if __name__ == "__main__":
+    with open('input1.txt', 'r', encoding='utf-8') as f:
+        main_text = f.read()
+
+report = generate_comprehensive_report(main_text)
+print_report(report)

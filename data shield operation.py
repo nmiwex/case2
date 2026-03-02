@@ -331,6 +331,51 @@ def analyze_logs(log_text):
     return result
 print(analyze_logs(main_text))
 
+
+def find_secrets(text):
+    patterns = {
+        "password": re.compile(r'(?i)\b(password|passwd|pwd|парол\w*)\b\s*[:=]\s*["\']?([^"\']+)'), # пароли
+        "api_key": re.compile(r'(?i)\b(api[_-]?key|apikey|client[_-]?key|secret[_-]?key)\b\s*[:=]\s*["\']?([^"\']+)'), # api ключи
+        "token": re.compile(r'(?i)\b(token|access[_-]?token|refresh[_-]?token|id[_-]?token)\b\s*[:=]\s*["\']?([^"\']+)'), # токены
+        "bearer": re.compile(r'(?i)Authorization:\s*Bearer\s+([A-Za-z0-9\-._~+/]+=*)'), # Bearer-токен
+        "api_key2": re.compile(r'\b[A-Za-z0-9_\-]{32,}\b'),  # если нет названий перед ключами
+        "google_api_key": re.compile(r'\bAIza[0-9A-Za-z\-_]{35}\b'), # google api ключ
+        "jwt": re.compile(r'\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b'), # jwt токен
+        "stripe_key": re.compile(r'\b(sk|pk)_(live|test)_[0-9a-zA-Z]{24,}\b'), # stripe ключи
+    }
+
+    results = {key: [] for key in patterns}
+    with open(text, 'r', encoding='utf-8') as f:
+        main_text = f.read()
+
+    for key, pattern in patterns.items():
+        for match in pattern.finditer(main_text):
+            if key == "api_key2" or key == "google_api_key" or key == "jwt":
+                results[key].append(match.group())
+            else:
+                results[key].append(match.group(2) if match.lastindex >= 2 else match.group(1))
+
+    return results
+
+def find_system_info(text):
+    patterns = {
+        "ipv4": re.compile(r'\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}'r'(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b'), # ipv4 адреса
+        "ipv6": re.compile(r'\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b'), # ipv6 адреса
+        "email": re.compile(r'\b[a-zA-Z0-9._%+-]+@'r'[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'), # email
+        "files": re.compile(r'\b[A-Za-z]:\\(?:[^\\\n]+\\)*[^\\\n]*'), # пути файлов
+        "filename": re.compile(r'(?i)\b[\w\-. ]+\.(?:txt|log|csv|json|xml|py|js|php|html|css|env|ini|conf)\b') #имена файлов
+    }
+
+    results = {key: [] for key in patterns}
+    with open(text, 'r', encoding='utf-8') as f:
+        main_text = f.read()
+
+    for key, pattern in patterns.items():
+        for match in pattern.finditer(main_text):
+             results[key].append(match.group())
+
+    return results
+
 def generate_comprehensive_report(text):
     """Generate a full investigation report"""
     report_res = { 'financial_data': find_and_validate_credit_cards(text),

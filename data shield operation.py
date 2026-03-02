@@ -161,8 +161,9 @@ def normalize_and_validate(text):
                 return None
         return None
     formats = [
-        '%d.%m.%Y', '%d/%m/%Y', '%d-%m-%Y', '%Y.%m.%d', '%Y-%m-%d', '%Y/%m/%d',
-        '%m.%d.%Y', '%m/%d/%Y', '%m-%d-%Y', '%d %B %Y', '%d-%B-%Y', '%d %b %Y', '%d-%b-%Y'
+        '%d.%m.%Y', '%d/%m/%Y', '%d-%m-%Y', '%Y.%m.%d', '%Y-%m-%d',
+        '%Y/%m/%d', '%m.%d.%Y', '%m/%d/%Y', '%m-%d-%Y', '%d %B %Y',
+        '%d-%B-%Y', '%d %b %Y', '%d-%b-%Y'
     ]
     ru_month = {
         "янв": 1, "января": 1, "январь": 1,
@@ -193,10 +194,10 @@ def normalize_and_validate(text):
     return result
 print(normalize_and_validate(main_text))
 
-#the moon algorithm
-def moon_algoritm(card):
+#the Luhn algorithm
+def luhn_algorithm(card):
     """
-    Сhecking cards for valid and invalid
+    Сheck cards for valid and invalid
     :param card: the line with the card number
     :type card: str
     :return: checksum % 10 == 0
@@ -218,23 +219,25 @@ def moon_algoritm(card):
     return checksum % 10 == 0
 
 #card numbers
-def find_num_card(numbers):
+def find_and_validate_credit_cards(numbers):
     """
     Searches for bank card numbers
     :param numbers: text to search in
     :return: {'card numbers: {'valid': [], 'invalid': []}'}
     """
-    result_list = {'valid': [], 'invalid': []}
-    card_numbers = re.findall(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}[\s./\\-]?\d{4}[\s./\\-]?\d{4})', numbers)
+    result = {'valid': [], 'invalid': []}
+    card_numbers = re.findall(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}'
+                              r'[\s./\\-]?\d{4}[\s./\\-]?\d{4})', numbers)
 
     for card in card_numbers:
-        clean_card = re.sub(r'[^\d]', '', card)
+        clean_card = re.sub(r'\D', '', card)
 
-        if len(clean_card) == 16 and moon_algoritm(clean_card):
-            result_list['valid'].append(clean_card)
+        if len(clean_card) == 16 and luhn_algorithm(clean_card):
+            result['valid'].append(clean_card)
         else:
-            result_list['invalid'].append(clean_card)
+            result['invalid'].append(clean_card)
 
-    return result_list
+    return result
 
-result_list = find_num_card(main_text)
+result_list = find_and_validate_credit_cards(main_text)
+print(result_list)

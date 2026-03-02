@@ -19,6 +19,51 @@ def add_unique(to_add, lst):
         lst.append(to_add)
 
 
+#the Luhn algorithm
+def luhn_algorithm(card):
+    """
+    Сheck cards for valid and invalid
+    :param card: the line with the card number
+    :type card: str
+    :return: checksum % 10 == 0
+    """
+    digits = [int(d) for d in card]
+    ood_digit = digits[::2]
+    even_digit = digits[1::2]
+    checksum = sum(even_digit)
+
+    for d in ood_digit:
+        d *= 2
+        if d > 9:
+            d -= 9
+        checksum += d
+
+    return checksum % 10 == 0
+
+
+#card numbers
+def find_and_validate_credit_cards(numbers):
+    """
+    Searches for bank card numbers
+    :param numbers: text to search in
+    :return: {'card numbers: {'valid': [], 'invalid': []}'}
+    """
+    result = {'valid': [], 'invalid': []}
+    card_numbers = re.findall(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}'
+                              r'[\s./\\-]?\d{4}[\s./\\-]?\d{4})', numbers)
+
+    for card in card_numbers:
+        clean_card = re.sub(r'\D', '', card)
+
+        if len(clean_card) == 16 and luhn_algorithm(clean_card):
+            result['valid'].append(clean_card)
+        else:
+            result['invalid'].append(clean_card)
+
+    return result
+print(find_and_validate_credit_cards(main_text))
+
+
 def decode_messages(text):
     """
     finds and decrypts messages
@@ -191,53 +236,17 @@ def normalize_and_validate(text):
         except ValueError:
             add_unique(date, result['dates']['invalid'])
 
-    return result
-print(normalize_and_validate(main_text))
-
-#the Luhn algorithm
-def luhn_algorithm(card):
-    """
-    Сheck cards for valid and invalid
-    :param card: the line with the card number
-    :type card: str
-    :return: checksum % 10 == 0
-    """
-    digit = [int(d) for d in card]
-
-    ood_digit = digit[::2]
-    even_digit = digit[1::2]
-
-    checksum = sum(even_digit)
-
-    for d in ood_digit:
-        d *= 2
-
-        if d > 9:
-            d -= 9
-        checksum += d
-
-    return checksum % 10 == 0
-
-#card numbers
-def find_and_validate_credit_cards(numbers):
-    """
-    Searches for bank card numbers
-    :param numbers: text to search in
-    :return: {'card numbers: {'valid': [], 'invalid': []}'}
-    """
-    result = {'valid': [], 'invalid': []}
-    card_numbers = re.findall(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}'
-                              r'[\s./\\-]?\d{4}[\s./\\-]?\d{4})', numbers)
-
-    for card in card_numbers:
+    #card numbers
+    for _ in re.finditer(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}'
+                              r'[\s./\\-]?\d{4}[\s./\\-]?\d{4})', text):
+        card = _.group(0).strip()
         clean_card = re.sub(r'\D', '', card)
 
         if len(clean_card) == 16 and luhn_algorithm(clean_card):
-            result['valid'].append(clean_card)
+            result['cards']['valid'].append(clean_card)
         else:
-            result['invalid'].append(clean_card)
+            result['cards']['invalid'].append(clean_card)
 
     return result
+print(normalize_and_validate(main_text))
 
-result_list = find_and_validate_credit_cards(main_text)
-print(result_list)

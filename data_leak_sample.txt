@@ -80,7 +80,7 @@ support@megasecure-corp.com
 Base64: VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ==
 Base64: Q29uZmlkZW50aWFsIERhdGEgTGVhaw==
 
-Hex: 0x4D795061c7373776F7264
+Hex: 0x4D7950617373776F7264
 Hex: 0x5365637265744B6579313233
 
 ROT13: Gur cnffjbeq vf Summer2024!

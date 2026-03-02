@@ -250,6 +250,9 @@ def normalize_and_validate(text):
     return result
 print(normalize_and_validate(main_text))
 
+import re
+
+
 def analyze_logs(log_text):
     """
     Analyzes web server logs and detects possible attacks.
@@ -257,12 +260,14 @@ def analyze_logs(log_text):
     :type log_text: str
     :return: dictionary with detected attacks
     """
+
     result = {
         'sql_injections': [],
         'xss_attempts': [],
         'suspicious_user_agents': [],
         'failed_logins': []
     }
+
     sql_patterns = [
         r'\bor\s+1=1\b',
         r'\bunion\s+select\b',
@@ -270,12 +275,14 @@ def analyze_logs(log_text):
         r'\bselect\s+\*\s+from\b',
         r'\'--'
     ]
+
     xss_patterns = [
         r'<script.*?>.*?</script>',
         r'javascript:',
         r'onerror=',
         r'alert\s*\('
     ]
+
     user_agent_patterns = [
         r'sqlmap',
         r'curl',
@@ -284,6 +291,7 @@ def analyze_logs(log_text):
         r'nikto',
         r'bot'
     ]
+
     failed_login_patterns = [
         r'failed login',
         r'401',
@@ -291,9 +299,11 @@ def analyze_logs(log_text):
         r'invalid password',
         r'authentication failed'
     ]
+
     lines = log_text.split('\n')
 
     for line in lines:
+
         for pattern in sql_patterns:
             if re.search(pattern, line, re.IGNORECASE):
                 if line not in result['sql_injections']:

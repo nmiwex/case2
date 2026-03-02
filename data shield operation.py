@@ -22,7 +22,7 @@ def add_unique(to_add, lst):
 #the Luhn algorithm
 def luhn_algorithm(card):
     """
-    Сheck cards for valid and invalid
+    Сhecking cards for valid and invalid
     :param card: the line with the card number
     :type card: str
     :return: checksum % 10 == 0
@@ -61,7 +61,6 @@ def find_and_validate_credit_cards(numbers):
             result['invalid'].append(clean_card)
 
     return result
-print(find_and_validate_credit_cards(main_text))
 
 
 def decode_messages(text):
@@ -190,7 +189,6 @@ def normalize_and_validate(text):
             day = int(m.group(1))
             mon = m.group(2).lower()
             year = int(m.group(3))
-
             if mon in ru_month:
                 month = ru_month[mon]
             else:
@@ -199,10 +197,9 @@ def normalize_and_validate(text):
                     month = ru_month[mon3]
                 else:
                     return None
-
             try:
                 return datetime(year, month, day).date()
-            except Exception:
+            except SyntaxError:
                 return None
         return None
     formats = [
@@ -248,5 +245,58 @@ def normalize_and_validate(text):
             result['cards']['invalid'].append(clean_card)
 
     return result
-print(normalize_and_validate(main_text))
 
+
+def generate_comprehensive_report(text):
+    """Generate a full investigation report"""
+    report_res = { 'financial_data': find_and_validate_credit_cards(text),
+               #'secrets': find_secrets(text),
+               #'system_info': find_system_info(text),
+               'encoded_messages': decode_messages(text),
+               #'security_threats': analyze_logs(text),
+               'normalized_data': normalize_and_validate(text)
+               }
+    return report_res
+
+def print_report(report_data):
+    """Demonstrate the report beautifully"""
+    sections = [("ФИНАНСОВЫЕ ДАННЫЕ", report_data['financial_data']),
+                ("РАСШИФРОВАННЫЕ СООБЩЕНИЯ", report_data['encoded_messages']),
+                ("НОРМАЛИЗОВАННЫЕ ДАННЫЕ", report_data['normalized_data'])]
+    with open('report.txt', 'w', encoding='utf-8') as file:
+        file.write('=' * 50)
+        file.write("ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'")
+        file.write('=' * 50)
+        total_sum = ['']
+
+
+        def find_artifacts(art, key=None):
+            if art is None:
+                file.write(f'\nНичего не найдено')
+            if isinstance(art, dict):
+                for k, v in art.items():
+                    if v:
+                        file.write(f'\n✰{k.upper()}')
+                    find_artifacts(v, key=k)
+                return
+            if isinstance(art, list):
+                for item in art:
+                    find_artifacts(item)
+                return
+            if isinstance(art, str):
+                file.write(f'\n{len(total_sum)}. {art}')
+                total_sum.append(art)
+
+
+        for title, data in sections:
+            file.write(f'\n{title}:')
+            find_artifacts(data)
+            file.write('\n' + '-' * 30)
+        file.write(f'\n Всего артефактов: {len(total_sum) - 1}')
+
+if __name__ == "__main__":
+    with open('data_leak_sample.txt', 'r', encoding='utf-8') as f:
+        main_text = f.read()
+
+report = generate_comprehensive_report(main_text)
+print_report(report)

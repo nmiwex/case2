@@ -49,8 +49,7 @@ def find_and_validate_credit_cards(numbers):
     :return: {'card numbers: {'valid': [], 'invalid': []}'}
     """
     result = {'valid': [], 'invalid': []}
-    card_numbers = re.findall(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}'
-                              r'[\s./\\-]?\d{4}[\s./\\-]?\d{4})', numbers)
+    card_numbers = re.findall(r'(?<!\d)(\d{4}[\s./\\-]?\d{4}[\s./\\-]?\d{4}[\s./\\-]?\d{4})(?!\d)', numbers)
 
     for card in card_numbers:
         clean_card = re.sub(r'\D', '', card)
@@ -61,7 +60,6 @@ def find_and_validate_credit_cards(numbers):
             result['invalid'].append(clean_card)
 
     return result
-print(find_and_validate_credit_cards(main_text))
 
 
 def decode_messages(text):
@@ -186,7 +184,7 @@ def normalize_and_validate(text):
                 return datetime.strptime(d, fmt)
             except ValueError:
                 continue
-        m = re.match(r"^\s*(\d{1,2})\s*([А-Яа-я]+)\s*(\d{4})\s*$", d)
+        m = re.match(r'^\s*(\d{1,2})\s*([А-Яа-я]+)\s*(\d{4})\s*$', d)
         if m:
             day = int(m.group(1))
             mon = m.group(2).lower()
@@ -214,18 +212,18 @@ def normalize_and_validate(text):
         '%d-%B-%Y', '%d %b %Y', '%d-%b-%Y'
     ]
     ru_month = {
-        "янв": 1, "января": 1, "январь": 1,
-        "фев": 2, "февраля": 2, "февраль": 2,
-        "мар": 3, "марта": 3, "март": 3,
-        "апр": 4, "апреля": 4, "апрель": 4,
-        "май": 5, "мая": 5,
-        "июн": 6, "июня": 6, "июнь": 6,
-        "июл": 7, "июля": 7, "июль": 7,
-        "авг": 8, "августа": 8, "август": 8,
-        "сен": 9, "сент": 9, "сентября": 9, "сентябрь": 9,
-        "окт": 10, "октября": 10, "октябрь": 10,
-        "ноя": 11, "ноября": 11, "ноябрь": 11,
-        "дек": 12, "декабря": 12, "декабрь": 12,
+        'янв': 1, 'января': 1, 'январь': 1,
+        'фев': 2, 'февраля': 2, 'февраль': 2,
+        'мар': 3, 'марта': 3, 'март': 3,
+        'апр': 4, 'апреля': 4, 'апрель': 4,
+        'май': 5, 'мая': 5,
+        'июн': 6, 'июня': 6, 'июнь': 6,
+        'июл': 7, 'июля': 7, 'июль': 7,
+        'авг': 8, 'августа': 8, 'август': 8,
+        'сен': 9, 'сент': 9, 'сентября': 9, 'сентябрь': 9,
+        'окт': 10, 'октября': 10, 'октябрь': 10,
+        'ноя': 11, 'ноября': 11, 'ноябрь': 11,
+        'дек': 12, 'декабря': 12, 'декабрь': 12,
     }
     for _ in re.finditer(r'\b\d{1,4}[^0][./-]\d{1,2}[./-]\d{2,4}\b|'
                          r'\b\d{1,2}[ \-][A-Za-zа-яА-Я]{3,}[ \-]\d{4}\b', text):
@@ -251,7 +249,6 @@ def normalize_and_validate(text):
             result['cards']['invalid'].append(clean_card)
 
     return result
-print(normalize_and_validate(main_text))
 
 
 def analyze_logs(log_text):
@@ -325,30 +322,71 @@ def analyze_logs(log_text):
                 break
 
     return result
-print(analyze_logs(main_text))
+
+
+def find_secrets(text):
+    patterns = {
+        'password': re.compile(r'(?i)\b(password|passwd|pwd|парол\w*)\b\s*[:=]\s*["\']?([^"\']+)'), # пароли
+        'api_key': re.compile(r'(?i)\b(api[_-]?key|apikey|client[_-]?key|secret[_-]?key)\b\s*[:=]\s*["\']?([^"\']+)'), # api ключи
+        'token': re.compile(r'(?i)\b(token|access[_-]?token|refresh[_-]?token|id[_-]?token)\b\s*[:=]\s*["\']?([^"\']+)'), # токены
+        'bearer': re.compile(r'(?i)Authorization:\s*Bearer\s+([A-Za-z0-9\-._~+/]+=*)'), # Bearer-токен
+        'api_key2': re.compile(r'\b[A-Za-z0-9_\-]{32,}\b'),  # если нет названий перед ключами
+        'google_api_key': re.compile(r'\bAIza[0-9A-Za-z\-_]{35}\b'), # google api ключ
+        'jwt': re.compile(r'\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b'), # jwt токен
+        'stripe_key': re.compile(r'\b(sk|pk)_(live|test)_[0-9a-zA-Z]{24,}\b'), # stripe ключи
+    }
+
+    results = {key: [] for key in patterns}
+
+    for key, pattern in patterns.items():
+        for match in pattern.finditer(main_text):
+            if key == 'api_key2' or key == 'google_api_key' or key == 'jwt':
+                results[key].append(match.group())
+            else:
+                results[key].append(match.group(2) if match.lastindex >= 2 else match.group(1))
+
+    return results
+
+def find_system_info(text):
+    patterns = {
+        'ipv4': re.compile(r'\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}'r'(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b'), # ipv4 адреса
+        'ipv6': re.compile(r'\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\b'), # ipv6 адреса
+        'email': re.compile(r'\b[a-zA-Z0-9._%+-]+@'r'[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b'), # email
+        'files': re.compile(r'\b[A-Za-z]:\\(?:[^\\\n]+\\)*[^\\\n]*'), # пути файлов
+        'filename': re.compile(r'(?i)\b[\w\-. ]+\.(?:txt|log|csv|json|xml|py|js|php|html|css|env|ini|conf)\b') #имена файлов
+    }
+
+    results = {key: [] for key in patterns}
+
+    for key, pattern in patterns.items():
+        for match in pattern.finditer(main_text):
+             results[key].append(match.group())
+
+    return results
 
 def generate_comprehensive_report(text):
     """Generate a full investigation report"""
     report_res = { 'financial_data': find_and_validate_credit_cards(text),
-               #'secrets': find_secrets(text),
-               #'system_info': find_system_info(text),
+               'secrets': find_secrets(text),
+               'system_info': find_system_info(text),
                'encoded_messages': decode_messages(text),
                'security_threats': analyze_logs(text),
                'normalized_data': normalize_and_validate(text)
                }
     return report_res
 
+
 def print_report(report_data):
     """Demonstrate the report beautifully"""
-    sections = [("ФИНАНСОВЫЕ ДАННЫЕ", report_data['financial_data']),
-                ("РАСШИФРОВАННЫЕ СООБЩЕНИЯ", report_data['encoded_messages']),
-                ("УГРОЗЫ БЕЗОПАСНОСТИ", report['security_threats']),
-                ("НОРМАЛИЗОВАННЫЕ ДАННЫЕ", report_data['normalized_data'])]
+    sections = [('ФИНАНСОВЫЕ ДАННЫЕ', report_data['financial_data']),
+                ('СЕКРЕТНЫЕ КЛЮЧИ', report['secrets']),
+                ('СИСТЕМНАЯ ИНФОРМАЦИЯ', report['system_info']),
+                ('РАСШИФРОВАННЫЕ СООБЩЕНИЯ', report_data['encoded_messages']),
+                ('УГРОЗЫ БЕЗОПАСНОСТИ', report['security_threats']),
+                ('НОРМАЛИЗОВАННЫЕ ДАННЫЕ', report_data['normalized_data'])]
     with open('result1.txt', 'w', encoding='utf-8') as file:
-        file.write('=' * 50)
-        file.write("ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'")
-        file.write('=' * 50)
-        total_sum = ['']
+        file.write('=' * 50 + "ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'" + '=' * 50)
+        total_sum = []
 
 
         def find_artifacts(art, key=None):
@@ -373,9 +411,10 @@ def print_report(report_data):
             file.write(f'\n{title}:')
             find_artifacts(data)
             file.write('\n' + '-' * 30)
-        file.write(f'\n Всего артефактов: {len(total_sum) - 1}')
+        file.write(f'\n Найдено артефактов: {len(total_sum)} \n')
+        file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     with open('input1.txt', 'r', encoding='utf-8') as f:
         main_text = f.read()
 

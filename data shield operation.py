@@ -384,7 +384,7 @@ def generate_comprehensive_report(text):
     return report_res
 
 
-def print_report(report_data):
+def print_report(report_data, file):
     """Demonstrate the report beautifully"""
     sections = [('ФИНАНСОВЫЕ ДАННЫЕ', report_data['financial_data']),
                 ('СЕКРЕТНЫЕ КЛЮЧИ', report['secrets']),
@@ -392,35 +392,35 @@ def print_report(report_data):
                 ('РАСШИФРОВАННЫЕ СООБЩЕНИЯ', report_data['encoded_messages']),
                 ('УГРОЗЫ БЕЗОПАСНОСТИ', report['security_threats']),
                 ('НОРМАЛИЗОВАННЫЕ ДАННЫЕ', report_data['normalized_data'])]
-    with open('result1.txt', 'w', encoding='utf-8') as file:
-        file.write('=' * 50 + "ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'" + '=' * 50)
-        total_sum = []
+
+    file.write('=' * 50 + "ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'" + '=' * 50)
+    total_sum = []
 
 
-        def find_artifacts(art, key=None):
-            if art is None:
-                file.write(f'\nНичего не найдено')
-            if isinstance(art, dict):
-                for k, v in art.items():
-                    if v:
-                        file.write(f'\n✰{k.upper()}')
-                    find_artifacts(v, key=k)
-                return
-            elif isinstance(art, list):
-                for item in art:
-                    find_artifacts(item)
-                return
-            elif isinstance(art, str):
-                file.write(f'\n{art}')
-                total_sum.append(art)
+    def find_artifacts(art, key=None):
+        if art is None:
+            file.write(f'\nНичего не найдено')
+        if isinstance(art, dict):
+            for k, v in art.items():
+                if v:
+                    file.write(f'\n✰{k.upper()}')
+                find_artifacts(v, key=k)
+            return
+        elif isinstance(art, list):
+            for item in art:
+                find_artifacts(item)
+            return
+        elif isinstance(art, str):
+            file.write(f'\n{art}')
+            total_sum.append(art)
 
 
-        for title, data in sections:
-            file.write(f'\n{title}:')
-            find_artifacts(data)
-            file.write('\n' + '-' * 30)
-        file.write(f'\n Найдено артефактов: {len(total_sum)} \n')
-        file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)
+    for title, data in sections:
+        file.write(f'\n{title}:')
+        find_artifacts(data)
+        file.write('\n' + '-' * 30)
+    file.write(f'\n Найдено артефактов: {len(total_sum)} \n')
+    file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)
 
 
 def extract_artifacts(filename):
@@ -489,8 +489,8 @@ def compare_all():
 
 
 if __name__ == '__main__':
-    with open('input1.txt', 'r', encoding='utf-8') as f:
+    with open('input1.txt', 'r+', encoding='utf-8') as f:
         main_text = f.read()
         report = generate_comprehensive_report(main_text)
-        print_report(report)
+        print_report(report, f)
         compare_all()

@@ -306,26 +306,22 @@ def analyze_logs(log_text):
     for line in lines:
         for pattern in sql_patterns:
             if re.search(pattern, line, re.IGNORECASE):
-                if line not in result['sql_injections']:
-                    result['sql_injections'].append(line)
+                add_unique(line.strip(), result['sql_injections'])
                 break
 
         for pattern in xss_patterns:
             if re.search(pattern, line, re.IGNORECASE):
-                if line not in result['xss_attempts']:
-                    result['xss_attempts'].append(line)
+                add_unique(line.strip(), result['xss_attempts'])
                 break
 
         for pattern in user_agent_patterns:
             if re.search(pattern, line, re.IGNORECASE):
-                if line not in result['suspicious_user_agents']:
-                    result['suspicious_user_agents'].append(line)
+                add_unique(line.strip(), result['suspicious_user_agents'])
                 break
 
         for pattern in failed_login_patterns:
             if re.search(pattern, line, re.IGNORECASE):
-                if line not in result['failed_logins']:
-                    result['failed_logins'].append(line)
+                add_unique(line.strip(), result['failed_logins'])
                 break
 
     return result

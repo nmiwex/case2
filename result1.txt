@@ -26,11 +26,90 @@ VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ
 10.0.0.50
 203.0.113.5
 198.51.100.42
+172.16.0.1
+172.16.0.254
+10.10.10.10
+10.10.10.20
+192.168.0.1
+192.168.0.100
+192.168.100.50
+10.0.1.1
+10.0.2.1
+172.31.255.255
+8.8.8.8
+8.8.4.4
+1.1.1.1
+208.67.222.222
+93.184.216.34
+151.101.1.140
+185.220.101.1
+45.33.32.156
+192.42.116.16
+23.129.64.100
+104.244.76.13
+192.168.1.100
+192.168.1.100
+203.0.113.5
+10.0.0.50
+198.51.100.42
+203.0.113.5
+10.0.0.255
+198.51.100.42
+203.0.113.5
+10.0.0.50
 ✰EMAIL
 alice.wonderland@securecorp.com
 bob.smith@megasecure.internal
 admin@company-test.ru
 support@megasecure-corp.com
+john.doe@megasecure.com
+jane.smith@megasecure.com
+security@megasecure.com
+it-support@megasecure.com
+hr@megasecure.com
+finance@megasecure.com
+postmaster@megasecure.com
+webmaster@megasecure.com
+noreply@megasecure.com
+alerts@megasecure.com
+monitoring@megasecure.com
+partner@external-company.ru
+vendor@supplier.net
+client@customer.org
+contractor@freelance.io
+admin@megasecure-corp.com
+support@megasecure-secure.com
+info@mega-secure-corp.net
+security@megasecure-internal.com
+✰FILES
+C:\Windows\System32\drivers\etc\hosts
+C:\Users\Admin\AppData\Local\config.xml
+D:\Projects\database\credentials.yml
+C:\Windows\System32\winevt\Logs\System.evtx
+C:\Projects\main.py
+C:\Program Files\PostgreSQL\data\base\backup.sql
+C:\Confidential\financial_report.xlsx
+D:\Backup\users_data.json
+C:\Windows\System32\config\SAM
+✰FILENAME
+auth.log
+config.php
+settings.json
+config.xml
+nginx.conf
+access.log
+error.log
+application.log
+app.py
+index.php
+main.py
+custom_script.py
+credit_cards.csv
+passwords.txt
+users_data.json
+api_keys.env
+resolv.conf
+index.php
 ------------------------------
 РАСШИФРОВАННЫЕ СООБЩЕНИЯ:
 ✰BASE64
@@ -44,6 +123,24 @@ The password is Fhzzre2024!
 SecretKey:12345
 ------------------------------
 УГРОЗЫ БЕЗОПАСНОСТИ:
+✰SQL_INJECTIONS
+203.0.113.5 - - [24/Feb/2026:22:25:17] "GET /index.php?id=5 UNION SELECT * FROM users" 200
+10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
+✰XSS_ATTEMPTS
+192.168.1.100 - - [24/Feb/2026:22:14:03] "GET /search?q=<script>alert('xss')</script>" 200
+10.0.0.255 - - [24/Feb/2026:22:30:33] "GET /profile?name=<script>javascript:alert(1)</script>" 200
+✰SUSPICIOUS_USER_AGENTS
+203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
+10.0.0.50 - - [24/Feb/2026:22:20:11] "GET /products?id=1' OR '1'='1" 200 "sqlmap"
+198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
+198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
+203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
+10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
+✰FAILED_LOGINS
+203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
+198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
+198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
+203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
 ------------------------------
 НОРМАЛИЗОВАННЫЕ ДАННЫЕ:
 ✰PHONES
@@ -74,6 +171,15 @@ SecretKey:12345
 2024-99-99
 32.01.2024
 99/99/9999
+16.0.254
+168.0.100
+172.31.255
+208.67.222
+101.1.140
+45.33.32
+192.42.116
+129.64.100
+244.76.13
 ✰INN
 ✰VALID
 7707083893
@@ -109,5 +215,5 @@ SecretKey:12345
 4485275098341234
 3530111111111111
 ------------------------------
- Найдено артефактов: 79 
+ Найдено артефактов: 179 
 ==================================================КОНЕЦ ОТЧЕТА==================================================

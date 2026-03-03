@@ -49,8 +49,7 @@ def find_and_validate_credit_cards(numbers):
     :return: {'card numbers: {'valid': [], 'invalid': []}'}
     """
     result = {'valid': [], 'invalid': []}
-    card_numbers = re.findall(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}'
-                              r'[\s./\\-]?\d{4}[\s./\\-]?\d{4})', numbers)
+    card_numbers = re.findall(r'(?<!\d)(\d{4}[\s./\\-]?\d{4}[\s./\\-]?\d{4}[\s./\\-]?\d{4})(?!\d)', numbers)
 
     for card in card_numbers:
         clean_card = re.sub(r'\D', '', card)

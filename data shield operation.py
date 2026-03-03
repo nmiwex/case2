@@ -5,8 +5,6 @@ import codecs
 import binascii
 import os
 from datetime import datetime
-with open('input1.txt', 'r', encoding='utf-8') as f:
-    main_text = f.read()
 
 
 def add_unique(to_add, lst):
@@ -424,12 +422,6 @@ def print_report(report_data):
         file.write(f'\n Найдено артефактов: {len(total_sum)} \n')
         file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)
 
-if __name__ == '__main__':
-    with open('input1.txt', 'r', encoding='utf-8') as f:
-        main_text = f.read()
-
-report = generate_comprehensive_report(main_text)
-print_report(report)
 
 def extract_artifacts(filename):
     artifacts = set()
@@ -497,4 +489,8 @@ def compare_all():
 
 
 if __name__ == '__main__':
-    compare_all()
+    with open('input1.txt', 'r', encoding='utf-8') as f:
+        main_text = f.read()
+        report = generate_comprehensive_report(main_text)
+        print_report(report)
+        compare_all()

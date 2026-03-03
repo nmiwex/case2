@@ -299,3 +299,15 @@ C:\Windows\System32\config\SAM
 БИК: 044525225
 ОКПО: 12345678
 ОГРН: 1157746123456
+
+=== ЛОГИ СЕРВЕРА ===
+
+192.168.1.100 - - [24/Feb/2026:22:14:03] "GET /search?q=<script>alert('xss')</script>" 200
+203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
+10.0.0.50 - - [24/Feb/2026:22:20:11] "GET /products?id=1' OR '1'='1" 200 "sqlmap"
+198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
+203.0.113.5 - - [24/Feb/2026:22:25:17] "GET /index.php?id=5 UNION SELECT * FROM users" 200
+10.0.0.255 - - [24/Feb/2026:22:30:33] "GET /profile?name=<script>javascript:alert(1)</script>" 200
+198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
+203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
+10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"

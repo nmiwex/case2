@@ -345,8 +345,6 @@ def find_secrets(text):
     }
 
     results = {key: [] for key in patterns}
-    with open(text, 'r', encoding='utf-8') as f:
-        main_text = f.read()
 
     for key, pattern in patterns.items():
         for match in pattern.finditer(main_text):
@@ -367,8 +365,6 @@ def find_system_info(text):
     }
 
     results = {key: [] for key in patterns}
-    with open(text, 'r', encoding='utf-8') as f:
-        main_text = f.read()
 
     for key, pattern in patterns.items():
         for match in pattern.finditer(main_text):
@@ -379,8 +375,8 @@ def find_system_info(text):
 def generate_comprehensive_report(text):
     """Generate a full investigation report"""
     report_res = { 'financial_data': find_and_validate_credit_cards(text),
-               #'secrets': find_secrets(text),
-               #'system_info': find_system_info(text),
+               'secrets': find_secrets(text),
+               'system_info': find_system_info(text),
                'encoded_messages': decode_messages(text),
                'security_threats': analyze_logs(text),
                'normalized_data': normalize_and_validate(text)
@@ -390,6 +386,8 @@ def generate_comprehensive_report(text):
 def print_report(report_data):
     """Demonstrate the report beautifully"""
     sections = [("ФИНАНСОВЫЕ ДАННЫЕ", report_data['financial_data']),
+                ("СЕКРЕТНЫЕ КЛЮЧИ", report['secrets']),
+                ("СИСТЕМНАЯ ИНФОРМАЦИЯ", report['system_info']),
                 ("РАСШИФРОВАННЫЕ СООБЩЕНИЯ", report_data['encoded_messages']),
                 ("УГРОЗЫ БЕЗОПАСНОСТИ", report['security_threats']),
                 ("НОРМАЛИЗОВАННЫЕ ДАННЫЕ", report_data['normalized_data'])]

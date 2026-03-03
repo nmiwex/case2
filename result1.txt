@@ -11,6 +11,27 @@
 4485275098341234
 3530111111111111
 ------------------------------
+СЕКРЕТНЫЕ КЛЮЧИ:
+✰API_KEY2
+fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K
+mock_pk_test_4eC39HqLyjWDarjtT1zdp7dc
+test_sk_test_51abc123def456ghi789jkl012mno345pqr678
+VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ
+------------------------------
+СИСТЕМНАЯ ИНФОРМАЦИЯ:
+✰IPV4
+192.168.1.1
+192.168.1.100
+10.0.0.255
+10.0.0.50
+203.0.113.5
+198.51.100.42
+✰EMAIL
+alice.wonderland@securecorp.com
+bob.smith@megasecure.internal
+admin@company-test.ru
+support@megasecure-corp.com
+------------------------------
 РАСШИФРОВАННЫЕ СООБЩЕНИЯ:
 ✰BASE64
 This is a secret message!
@@ -88,4 +109,4 @@ SecretKey:12345
 4485275098341234
 3530111111111111
 ------------------------------
- Всего артефактов: 65
+ Всего артефактов: 79

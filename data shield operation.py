@@ -358,7 +358,7 @@ def normalize_and_validate(text):
         except ValueError:
             add_unique(date, result['dates']['invalid'])
 
-#card numbers
+    #card numbers
     for _ in re.finditer(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}'
                               r'[\s./\\-]?\d{4}[\s./\\-]?\d{4})', text):
         card = _.group(0).strip()
@@ -392,34 +392,36 @@ def print_report(report_data, file):
                 ('УГРОЗЫ БЕЗОПАСНОСТИ', report['security_threats']),
                 ('НОРМАЛИЗОВАННЫЕ ДАННЫЕ', report_data['normalized_data'])]
 
-    file.write('=' * 50 + "ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'" + '=' * 50)
-    total_sum = []
+    with open('result1.txt', 'w', encoding='utf-8') as file:
+        file.write('=' * 50 + "ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'" + '=' * 50)
+        total_sum = []
 
 
-    def find_artifacts(art, key=None):
-        if art is None:
-            file.write(f'\nНичего не найдено')
-        if isinstance(art, dict):
-            for k, v in art.items():
-                if v:
-                    file.write(f'\n✰{k.upper()}')
-                find_artifacts(v, key=k)
-            return
-        elif isinstance(art, list):
-            for item in art:
-                find_artifacts(item)
-            return
-        elif isinstance(art, str):
-            file.write(f'\n{art}')
-            total_sum.append(art)
+        def find_artifacts(art, key=None):
+            if art is None:
+                file.write(f'\nНичего не найдено')
+            if isinstance(art, dict):
+                for k, v in art.items():
+                    if v:
+                        file.write(f'\n✰{k.upper()}')
+                    find_artifacts(v, key=k)
+                return
+            elif isinstance(art, list):
+                for item in art:
+                    find_artifacts(item)
+                return
+            elif isinstance(art, str):
+                file.write(f'\n{art}')
+                total_sum.append(art)
 
 
-    for title, data in sections:
-        file.write(f'\n{title}:')
-        find_artifacts(data)
-        file.write('\n' + '-' * 30)
-    file.write(f'\n Найдено артефактов: {len(total_sum)} \n')
-    file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)
+        for title, data in sections:
+            file.write(f'\n{title}:')
+            find_artifacts(data)
+            file.write('\n' + '-' * 30)
+
+        file.write(f'\n\tНайдено артефактов: {len(total_sum)} \n')
+        file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)
 
 
 def extract_artifacts(filename):

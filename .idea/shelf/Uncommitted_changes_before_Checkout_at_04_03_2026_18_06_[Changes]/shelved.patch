@@ -1,0 +1,1464 @@
+Index: data shield operation.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+># operation_data_shield.py\r\nimport re\r\nimport base64\r\nimport codecs\r\nimport binascii\r\nimport os\r\nfrom datetime import datetime\r\n\r\n\r\ndef add_unique(to_add, lst):\r\n    \"\"\"\r\n    adds something to the list if it is unique\r\n    :param to_add: something to be added\r\n    :param lst: some list\r\n    :return:None\r\n    \"\"\"\r\n    if to_add not in lst:\r\n        lst.append(to_add)\r\n\r\n\r\n#the Luhn algorithm\r\ndef luhn_algorithm(card):\r\n    \"\"\"\r\n    Сheck cards for valid and invalid\r\n    :param card: the line with the card number\r\n    :type card: str\r\n    :return: checksum % 10 == 0\r\n    \"\"\"\r\n    digits = [int(d) for d in card]\r\n    ood_digit = digits[::2]\r\n    even_digit = digits[1::2]\r\n    checksum = sum(even_digit)\r\n\r\n    for d in ood_digit:\r\n        d *= 2\r\n        if d > 9:\r\n            d -= 9\r\n        checksum += d\r\n\r\n    return checksum % 10 == 0\r\n\r\n\r\n#card numbers\r\ndef find_and_validate_credit_cards(numbers):\r\n    \"\"\"\r\n    Searches for bank card numbers\r\n    :param numbers: text to search in\r\n    :return: {'card numbers: {'valid': [], 'invalid': []}'}\r\n    \"\"\"\r\n    result = {'valid': [], 'invalid': []}\r\n    card_numbers = re.findall(r'(?<!\\d)(\\d{4}[\\s./\\\\-]?\\d{4}[\\s./\\\\-]?\\d{4}'\r\n                              r'[\\s./\\\\-]?\\d{4})(?!\\d)', numbers)\r\n\r\n    for card in card_numbers:\r\n        clean_card = re.sub(r'\\D', '', card)\r\n\r\n        if len(clean_card) == 16 and luhn_algorithm(clean_card):\r\n            result['valid'].append(clean_card)\r\n        else:\r\n            result['invalid'].append(clean_card)\r\n\r\n    return result\r\n\r\n\r\ndef find_secrets(text):\r\n    patterns = {\r\n        'password': re.compile(r'(?i)\\b(password|passwd|pwd|парол\\w*)\\b\\s*'\r\n                               r'[:=]\\s*[\"\\']?([^\"\\']+)'), # пароли\r\n        'api_key': re.compile(r'(?i)\\b(api[_-]?key|apikey|client[_-]?key|'\r\n                              r'secret[_-]?key)\\b\\s*[:=]\\s*[\"\\']?([^\"\\']+)'), # api ключи\r\n        'token': re.compile(r'(?i)\\b(token|access[_-]?token|refresh[_-]?token|'\r\n                            r'id[_-]?token)\\b\\s*[:=]\\s*[\"\\']?([^\"\\']+)'), # токены\r\n        'bearer': re.compile(r'(?i)Authorization:\\s*Bearer\\s+([A-Za-z0-9\\-._~+/]+=*)'), # Bearer-токен\r\n        'api_key2': re.compile(r'\\b[A-Za-z0-9_\\-]{32,}\\b'),  # если нет названий перед ключами\r\n        'google_api_key': re.compile(r'\\bAIza[0-9A-Za-z\\-_]{35}\\b'), # google api ключ\r\n        'jwt': re.compile(r'\\beyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\b'), # jwt токен\r\n        'stripe_key': re.compile(r'\\b(sk|pk)_(live|test)_[0-9a-zA-Z]{24,}\\b'), # stripe ключи\r\n    }\r\n\r\n    results = {key: [] for key in patterns}\r\n\r\n    for key, pattern in patterns.items():\r\n        for match in pattern.finditer(main_text):\r\n            if key == 'api_key2' or key == 'google_api_key' or key == 'jwt':\r\n                results[key].append(match.group())\r\n            else:\r\n                results[key].append(match.group(2) if match.lastindex >= 2 else match.group(1))\r\n\r\n    return results\r\n\r\n\r\ndef find_system_info(text):\r\n    patterns = {\r\n        'ipv4': re.compile(r'\\b(?:(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.){3}'\r\n                           r'(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\b'), # ipv4 адреса\r\n        'ipv6': re.compile(r'\\b(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}\\b'), # ipv6 адреса\r\n        'email': re.compile(r'\\b[a-zA-Z0-9._%+-]+@'r'[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\\b'), # email\r\n        'files': re.compile(r'\\b[A-Za-z]:\\\\(?:[^\\\\\\n]+\\\\)*[^\\\\\\n]*'), # пути файлов\r\n        'filename': re.compile(r'(?i)\\b[\\w\\-. ]+\\.(?:txt|log|csv|json|xml|'\r\n                               r'py|js|php|html|css|env|ini|conf)\\b') #имена файлов\r\n    }\r\n\r\n    results = {key: [] for key in patterns}\r\n\r\n    for key, pattern in patterns.items():\r\n        for match in pattern.finditer(main_text):\r\n             results[key].append(match.group())\r\n\r\n    return results\r\n\r\n\r\ndef decode_messages(text):\r\n    \"\"\"\r\n    finds and decrypts messages\r\n    :param text: text to decode\r\n    :return: {'base64': [], 'hex': [], 'rot13': []}\r\n    \"\"\"\r\n    result = {\r\n        'base64': [],\r\n        'hex': [],\r\n        'rot13': []\r\n    }\r\n    #base64 codes\r\n    for _ in re.finditer(r'Base64:\\s*([A-Za-z0-9+/=]+)', text):\r\n        b64 = _.group(1)\r\n        try:\r\n            b64_bytes = base64.b64decode(b64)\r\n            b64_str =b64_bytes.decode('utf-8')\r\n            result['base64'].append(b64_str)\r\n        except binascii.Error:\r\n            result['base64'].append('Некорректный формат Base64')\r\n        except UnicodeDecodeError:\r\n            result['base64'].append('Ошибка декодирования')\r\n\r\n    #hex 0x.. codes\r\n    hex_type1 = re.findall(r'Hex:\\s*(0x[0-9A-Fa-f]+)', text)\r\n    #hex \\xHH.. codes\r\n    hex_type2 = re.findall(r'(?:\\\\x[0-9A-Fa-f]{2})+', text)\r\n    all_hex = hex_type1 + hex_type2\r\n    for hex_code in all_hex:\r\n        try:\r\n            clean_hex = hex_code.replace('0x', '').replace('\\\\x', '')\r\n            hex_bytes = bytes.fromhex(clean_hex)\r\n            hex_str = hex_bytes.decode('utf-8')\r\n            result['hex'].append(hex_str)\r\n        except ValueError:\r\n            result['hex'].append('Ошибка: нечетное количество символов '\r\n                                 'или недопустимые знаки')\r\n        except UnicodeDecodeError:\r\n            result['hex'].append('Ошибка декодирования: '\r\n                                 f'Содержит нечитаемые бинарные данные')\r\n\r\n    #rot13\r\n    for _ in re.finditer(r'ROT13:\\s*([A-Za-z0-9 .,!?;:\\'\"\\-\\(\\)]*)', text):\r\n        rot = _.group(1)\r\n        rot_str = codecs.decode(rot, 'rot13')\r\n        result['rot13'].append(rot_str)\r\n    return result\r\n\r\n\r\ndef analyze_logs(log_text):\r\n    \"\"\"\r\n    Analyzes web server logs and detects possible attacks.\r\n    :param log_text: full log text\r\n    :type log_text: str\r\n    :return: dictionary with detected attacks\r\n    \"\"\"\r\n\r\n    result = {\r\n        'sql_injections': [],\r\n        'xss_attempts': [],\r\n        'suspicious_user_agents': [],\r\n        'failed_logins': []\r\n    }\r\n\r\n    sql_patterns = [\r\n        r'\\bor\\s+1=1\\b',\r\n        r'\\bunion\\s+select\\b',\r\n        r'\\bdrop\\s+table\\b',\r\n        r'\\bselect\\s+\\*\\s+from\\b',\r\n        r'\\'--'\r\n    ]\r\n\r\n    xss_patterns = [\r\n        r'<script.*?>.*?</script>',\r\n        r'javascript:',\r\n        r'onerror=',\r\n        r'alert\\s*\\('\r\n    ]\r\n\r\n    user_agent_patterns = [\r\n        r'sqlmap',\r\n        r'curl',\r\n        r'wget',\r\n        r'python-requests',\r\n        r'nikto',\r\n        r'bot'\r\n    ]\r\n\r\n    failed_login_patterns = [\r\n        r'failed login',\r\n        r'401',\r\n        r'unauthorized',\r\n        r'invalid password',\r\n        r'authentication failed'\r\n    ]\r\n\r\n    lines = log_text.split('\\n')\r\n\r\n    for line in lines:\r\n        for pattern in sql_patterns:\r\n            if re.search(pattern, line, re.IGNORECASE):\r\n                add_unique(line.strip(), result['sql_injections'])\r\n                break\r\n\r\n        for pattern in xss_patterns:\r\n            if re.search(pattern, line, re.IGNORECASE):\r\n                add_unique(line.strip(), result['xss_attempts'])\r\n                break\r\n\r\n        for pattern in user_agent_patterns:\r\n            if re.search(pattern, line, re.IGNORECASE):\r\n                add_unique(line.strip(), result['suspicious_user_agents'])\r\n                break\r\n\r\n        for pattern in failed_login_patterns:\r\n            if re.search(pattern, line, re.IGNORECASE):\r\n                add_unique(line.strip(), result['failed_logins'])\r\n                break\r\n\r\n    return result\r\n\r\n\r\ndef normalize_and_validate(text):\r\n    \"\"\"\r\n    Brings the data to a single format and check it\r\n    :param text: text to normalize\r\n    :return: {\r\n        'phones': {'valid': [], 'invalid': []},\r\n        'dates': {'normalized': [], 'invalid': []},\r\n        'inn': {'valid': [], 'invalid': []},\r\n        'cards': {'valid': [], 'invalid': []}\r\n    }\r\n    \"\"\"\r\n    result = {\r\n        'phones': {'valid': [], 'invalid': []},\r\n        'dates': {'normalized': [], 'invalid': []},\r\n        'inn': {'valid': [], 'invalid': []},\r\n        'cards': {'valid': [], 'invalid': []}\r\n    }\r\n    #phones\r\n    for _ in re.finditer(r'\\b(\\+7|8|7)[0-9 \\(\\)\\-]{10,19}', text):\r\n        phone = _.group(0)\r\n        digits = re.sub(r'\\D', '', phone)\r\n        if len(digits) > 11:\r\n            continue\r\n        elif len(digits) == 11 and digits[0] in '78':\r\n            if digits[0] == '8':\r\n                digits = '7' + digits[1:]\r\n            normalized_phone = (f'+{digits[0]} ({digits[1:4]}) '\r\n                                f'{digits[4:7]}-{digits[7:9]}-{digits[9:]}')\r\n            add_unique(normalized_phone, result['phones']['valid'])\r\n        else:\r\n            add_unique(phone, result['phones']['invalid'])\r\n\r\n    for _ in re.finditer(r'\\b9[0-9 \\(\\)\\-]{9,16}', text):\r\n        phone = _.group(0)\r\n        digits = re.sub(r'\\D', '', phone)\r\n        if len(digits) != 10:\r\n            continue\r\n        normalized_phone = (f'+7 ({digits[:3]}) '\r\n                            f'{digits[3:6]}-{digits[6:8]}-{digits[8:]}')\r\n        add_unique(normalized_phone, result['phones']['valid'])\r\n\r\n    #inn\r\n    coef10 = [2, 4, 10, 3, 5, 9, 4, 6, 8]\r\n    coef11 = [7, 2, 4, 10, 3, 5, 9, 4, 6, 8]\r\n    coef12 = [3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8]\r\n    for _ in re.finditer(r'\\b(\\d{10,13}[ \\-]?)', text):\r\n        inn = _.group(0)\r\n        digits = re.sub(r'\\D', '', inn)\r\n        digits_int = list(map(int, digits))\r\n\r\n        if len(digits) == 10:\r\n            ctrl_sum = sum(digits_int[i] * coef10[i] for i in range(9))\r\n            ctrl_digit = (ctrl_sum % 11) % 10\r\n            if ctrl_digit == digits_int[-1]:\r\n                add_unique(inn, result['inn']['valid'])\r\n            else:\r\n                add_unique(inn, result['inn']['invalid'])\r\n        elif len(digits) == 12:\r\n            ctrl_sum1 = sum(digits_int[i] * coef11[i] for i in range(10))\r\n            ctrl_digit1 = (ctrl_sum1 % 11) % 10\r\n            ctrl_sum2 = sum(digits_int[i] * coef12[i] for i in range(11))\r\n            ctrl_digit2 = (ctrl_sum2 % 11) % 10\r\n            if ctrl_digit1 == digits_int[-2] and ctrl_digit2 == digits_int[-1]:\r\n                add_unique(digits, result['inn']['valid'])\r\n            else:\r\n                add_unique(digits, result['inn']['invalid'])\r\n\r\n    #dates\r\n    def parse_date(d):\r\n        for fmt in formats:\r\n            try:\r\n                return datetime.strptime(d, fmt)\r\n            except ValueError:\r\n                continue\r\n        m = re.match(r'^\\s*(\\d{1,2})\\s*([А-Яа-я]+)\\s*(\\d{4})\\s*$', d)\r\n        if m:\r\n            day = int(m.group(1))\r\n            mon = m.group(2).lower()\r\n            year = int(m.group(3))\r\n\r\n            if mon in ru_month:\r\n                month = ru_month[mon]\r\n            else:\r\n                mon3 = mon[:3]\r\n                if mon3 in ru_month:\r\n                    month = ru_month[mon3]\r\n                else:\r\n                    return None\r\n\r\n            try:\r\n                return datetime(year, month, day).date()\r\n            except Exception:\r\n                return None\r\n        return None\r\n\r\n\r\n    formats = [\r\n        '%d.%m.%Y', '%d/%m/%Y', '%d-%m-%Y', '%Y.%m.%d', '%Y-%m-%d',\r\n        '%Y/%m/%d', '%m.%d.%Y', '%m/%d/%Y', '%m-%d-%Y', '%d %B %Y',\r\n        '%d-%B-%Y', '%d %b %Y', '%d-%b-%Y'\r\n    ]\r\n    ru_month = {\r\n        'янв': 1, 'января': 1, 'январь': 1,\r\n        'фев': 2, 'февраля': 2, 'февраль': 2,\r\n        'мар': 3, 'марта': 3, 'март': 3,\r\n        'апр': 4, 'апреля': 4, 'апрель': 4,\r\n        'май': 5, 'мая': 5,\r\n        'июн': 6, 'июня': 6, 'июнь': 6,\r\n        'июл': 7, 'июля': 7, 'июль': 7,\r\n        'авг': 8, 'августа': 8, 'август': 8,\r\n        'сен': 9, 'сент': 9, 'сентября': 9, 'сентябрь': 9,\r\n        'окт': 10, 'октября': 10, 'октябрь': 10,\r\n        'ноя': 11, 'ноября': 11, 'ноябрь': 11,\r\n        'дек': 12, 'декабря': 12, 'декабрь': 12,\r\n    }\r\n    for _ in re.finditer(r'\\b\\d{1,4}[^0][./-]\\d{1,2}[./-]\\d{2,4}\\b|'\r\n                         r'\\b\\d{1,2}[ \\-][A-Za-zа-яА-Я]{3,}[ \\-]\\d{4}\\b', text):\r\n        date = _.group(0).strip()\r\n        try:\r\n            dt = parse_date(date)\r\n            if dt is None:\r\n                add_unique(date, result['dates']['invalid'])\r\n            else:\r\n                add_unique(dt.strftime('%d.%m.%Y'), result['dates']['normalized'])\r\n        except ValueError:\r\n            add_unique(date, result['dates']['invalid'])\r\n\r\n#card numbers\r\n    for _ in re.finditer(r'Номер карты:\\s*(\\d{4}[\\s./\\\\-]?\\d{4}'\r\n                              r'[\\s./\\\\-]?\\d{4}[\\s./\\\\-]?\\d{4})', text):\r\n        card = _.group(0).strip()\r\n        clean_card = re.sub(r'\\D', '', card)\r\n\r\n        if len(clean_card) == 16 and luhn_algorithm(clean_card):\r\n            result['cards']['valid'].append(clean_card)\r\n        else:\r\n            result['cards']['invalid'].append(clean_card)\r\n\r\n    return result\r\n\r\ndef generate_comprehensive_report(text):\r\n    \"\"\"Generate a full investigation report\"\"\"\r\n    report_res = { 'financial_data': find_and_validate_credit_cards(text),\r\n               'secrets': find_secrets(text),\r\n               'system_info': find_system_info(text),\r\n               'encoded_messages': decode_messages(text),\r\n               'security_threats': analyze_logs(text),\r\n               'normalized_data': normalize_and_validate(text)\r\n               }\r\n    return report_res\r\n\r\n\r\ndef print_report(report_data, file):\r\n    \"\"\"Demonstrate the report beautifully\"\"\"\r\n    sections = [('ФИНАНСОВЫЕ ДАННЫЕ', report_data['financial_data']),\r\n                ('СЕКРЕТНЫЕ КЛЮЧИ', report['secrets']),\r\n                ('СИСТЕМНАЯ ИНФОРМАЦИЯ', report['system_info']),\r\n                ('РАСШИФРОВАННЫЕ СООБЩЕНИЯ', report_data['encoded_messages']),\r\n                ('УГРОЗЫ БЕЗОПАСНОСТИ', report['security_threats']),\r\n                ('НОРМАЛИЗОВАННЫЕ ДАННЫЕ', report_data['normalized_data'])]\r\n\r\n    file.write('=' * 50 + \"ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'\" + '=' * 50)\r\n    total_sum = []\r\n\r\n\r\n    def find_artifacts(art, key=None):\r\n        if art is None:\r\n            file.write(f'\\nНичего не найдено')\r\n        if isinstance(art, dict):\r\n            for k, v in art.items():\r\n                if v:\r\n                    file.write(f'\\n✰{k.upper()}')\r\n                find_artifacts(v, key=k)\r\n            return\r\n        elif isinstance(art, list):\r\n            for item in art:\r\n                find_artifacts(item)\r\n            return\r\n        elif isinstance(art, str):\r\n            file.write(f'\\n{art}')\r\n            total_sum.append(art)\r\n\r\n\r\n    for title, data in sections:\r\n        file.write(f'\\n{title}:')\r\n        find_artifacts(data)\r\n        file.write('\\n' + '-' * 30)\r\n    file.write(f'\\n Найдено артефактов: {len(total_sum)} \\n')\r\n    file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)\r\n\r\n\r\ndef extract_artifacts(filename):\r\n    artifacts = set()\r\n\r\n    if not os.path.exists(filename):\r\n        return artifacts\r\n\r\n    with open(filename, 'r', encoding='utf-8') as f:\r\n        for line in f:\r\n            line = line.strip()\r\n\r\n            if (\r\n                not line or\r\n                line.startswith('=') or\r\n                line.startswith('-') or\r\n                line.startswith('✰') or\r\n                line.endswith(':') or\r\n                'ОТЧЕТ' in line or\r\n                'КОНЕЦ ОТЧЕТА' in line or\r\n                'Найдено артефактов' in line\r\n            ):\r\n                continue\r\n\r\n            artifacts.add(line)\r\n\r\n    return artifacts\r\n\r\n\r\ndef compare_all():\r\n    base_file = 'result1.txt'\r\n    base_artifacts = extract_artifacts(base_file)\r\n\r\n    print('=' * 60)\r\n    print('СРАВНЕНИЕ КОМАНД')\r\n    print('=' * 60)\r\n    print(f'\\nКоманда 1 нашла: {len(base_artifacts)} артефактов\\n')\r\n\r\n    for i in range(2, 11):\r\n        filename = f'result{i}.txt'\r\n\r\n        if not os.path.exists(filename):\r\n            continue\r\n\r\n        team_artifacts = extract_artifacts(filename)\r\n\r\n        common = base_artifacts & team_artifacts\r\n        only_base = base_artifacts - team_artifacts\r\n        only_other = team_artifacts - base_artifacts\r\n\r\n        print('-' * 60)\r\n        print(f'Сравнение result1.txt и {filename}')\r\n        print(f'У них найдено: {len(team_artifacts)}')\r\n        print(f'Общие артефакты: {len(common)}')\r\n        print(f'Мы нашли, они нет: {len(only_base)}')\r\n        print(f'Они нашли, мы нет: {len(only_other)}')\r\n\r\n        if only_other:\r\n            print('\\nПотери нашей команды:')\r\n            for item in sorted(only_other):\r\n                print(item)\r\n\r\n    print('\\n' + '=' * 60)\r\n    print('Сравнение завершено')\r\n    print('=' * 60)\r\n\r\n\r\nif __name__ == '__main__':\r\n    with open('input1.txt', 'r+', encoding='utf-8') as f:\r\n        main_text = f.read()\r\n        report = generate_comprehensive_report(main_text)\r\n        print_report(report, f)\r\n        compare_all()
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/data shield operation.py b/data shield operation.py
+--- a/data shield operation.py	(revision 13cf30e417e5b471cae7969ba0303fe464634d77)
++++ b/data shield operation.py	(date 1772607924528)
+@@ -358,7 +358,7 @@
+         except ValueError:
+             add_unique(date, result['dates']['invalid'])
+ 
+-#card numbers
++    #card numbers
+     for _ in re.finditer(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}'
+                               r'[\s./\\-]?\d{4}[\s./\\-]?\d{4})', text):
+         card = _.group(0).strip()
+Index: input1.txt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+># Конфиденциальные данные - утечка базы MegaSecure Corp\r\n# Дата обнаружения: 25.02.2026\r\n\r\n=== ПЛАТЕЖНЫЕ ДАННЫЕ КЛИЕНТОВ ===\r\n\r\nКлиент #1: Иван Петров\r\nНомер карты: 4532-4512-8795-2109\r\nCVV: 123\r\nСрок действия: 12/25\r\n\r\nКлиент #2: Мария Сидорова  \r\nНомер карты: 4111.1111\\1111.1111\r\nCVV: 456\r\nСрок действия: 08/24\r\n\r\nКлиент #3: Алексей Козлов\r\nНомер карты:  5500-0000-0000-0004\r\nCVV: 789\r\nСрок действия: 03/26\r\n\r\nКлиент #4: Ольга Новикова\r\nНомер карты: 3400 0000 0000 0090\r\nCVV: 321\r\nСрок действия: 11/25\r\n\r\nКлиент #5: Дмитрий Волков\r\nНомер карты: 1234-5678-9012-3456\r\nCVV: 654\r\nСрок действия: 07/24\r\n\r\nКлиент #6: Елена Морозова\r\nНомер карты: 4485 2750 9834 1234\r\nCVV: 987\r\nСрок действия: 01/27\r\n\r\nКлиент #7: Сергей Лебедев\r\nНомер карты: 6011-0000-0000-0004\r\nCVV: 246\r\nСрок действия: 05/26\r\n\r\nКлиент #8: Анна Павлова\r\nНомер карты: 3530-1111-1111-1111\r\nCVV: 135\r\nСрок действия: 09/25\r\n\r\n=== API-КЛЮЧИ И ДОСТУПЫ ===\r\n\r\nProduction API Key: fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K\r\nTest API Key: mock_pk_test_4eC39HqLyjWDarjtT1zdp7dc\r\nSecret Key: test_sk_test_51abc123def456ghi789jkl012mno345pqr678\r\n\r\n=== ПАРОЛИ ПОЛЬЗОВАТЕЛЕЙ ===\r\n\r\nadmin: like_This_123!\r\nroot: Summer2024!\r\ndb_user: P@ssw0rd_2024\r\nbackup_user: Backup123!Secure\r\n\r\n=== СЕТЕВАЯ ИНФОРМАЦИЯ ===\r\n\r\nВнутренние серверы:\r\n- Главный БД: 192.168.1.1\r\n- Резервный БД: 192.168.1.100\r\n- Веб-сервер: 10.0.0.255\r\n- Сервер приложений: 10.0.0.50\r\n\r\nВнешние IP:\r\n- 203.0.113.5\r\n- 198.51.100.42\r\n\r\n=== EMAIL АДРЕСА ===\r\n\r\nalice.wonderland@securecorp.com\r\nbob.smith@megasecure.internal\r\nadmin@company-test.ru\r\nsupport@megasecure-corp.com\r\n\r\n=== ЗАКОДИРОВАННЫЕ СООБЩЕНИЯ ===\r\n\r\nBase64: VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ==\r\nBase64: Q29uZmlkZW50aWFsIERhdGEgTGVhaw==\r\n\r\nHex: 0x4D7950617373776F7264\r\nHex: 0x5365637265744B6579313233\r\n\r\nROT13: Gur cnffjbeq vf Summer2024!\r\nROT13: FrpergXrl:12345\r\n\r\n=== КОНТАКТНЫЕ ДАННЫЕ (для нормализации) ===\r\n\r\nТелефоны клиентов:\r\n+7 (912) 345-67-89\r\n8-912-345-67-89\r\n+79123456789\r\n8 (912) 3456789\r\n+7-912-345-67-89\r\n9123456789\r\n+7(912)345-67-89\r\n89123456789\r\n+7 912 345 67 89\r\n+1-555-123-4567\r\n+44 20 7946 0958\r\n8-800-555-35-35\r\n+7 (495) 123-45-67\r\n+7(812)987-65-43\r\n912-345-67-89\r\n+79991234567\r\n+375 29 123-45-67\r\n+998 90 123-45-67\r\n89001234567\r\n+7 999 1234567\r\n\r\nДаты рождения клиентов:\r\n15.02.2024\r\n2024/02/15\r\n15-Feb-2024\r\n2024-02-15\r\n02/15/2024\r\n15/02/2024\r\n2024.02.15\r\n15 февраля 2024\r\n01.03.2023\r\n2023/03/01\r\n01-Mar-2023\r\n2023-03-01\r\n31/12/2022\r\n2022.12.31\r\n31-Dec-2022\r\n2022-12-31\r\n34.4.2021\r\n20/01/2024\r\n2024/01/20\r\n20-Jan-2024\r\n2024-01-20\r\ninvalid_date\r\n2024-99-99\r\n32.01.2024\r\n99/99/9999\r\n\r\nИНН клиентов:\r\n1234567890\r\n123456789012\r\n7707083893\r\n5024002630\r\n7736050003\r\n500100732255\r\n770708389301\r\n9999999999\r\n123456789012\r\n7701020304\r\n502400263001\r\n1111111111\r\n222222222222\r\n3333333333\r\n444444444444\r\n5555555555\r\n666666666666\r\n7777777777\r\n888888888888\r\n9999999999\r\n0000000000\r\n12345678901\r\n1234567890123\r\n12345\r\n12345678901234567890\r\n\r\n=== ФАЙЛЫ ===\r\nlupa.py\r\ngazel.py\r\nchashka.py\r\nmax.py\r\n\r\n=== ДОПОЛНИТЕЛЬНЫЕ ДАННЫЕ ===\r\n\r\nНомер клиента: 12345678\r\nСчет: 40817810099910004312\r\nБИК: 044525225\r\nОКПО: 12345678\r\nОГРН: 1157746123456
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/input1.txt b/input1.txt
+--- a/input1.txt	(revision 13cf30e417e5b471cae7969ba0303fe464634d77)
++++ b/input1.txt	(date 1772607877641)
+@@ -9,12 +9,12 @@
+ Срок действия: 12/25
+ 
+ Клиент #2: Мария Сидорова  
+-Номер карты: 4111.1111\1111.1111
++Номер карты: 4111 1111 1111 1111
+ CVV: 456
+ Срок действия: 08/24
+ 
+ Клиент #3: Алексей Козлов
+-Номер карты:  5500-0000-0000-0004
++Номер карты: 5500-0000-0000-0004
+ CVV: 789
+ Срок действия: 03/26
+ 
+@@ -164,11 +164,133 @@
+ 12345
+ 12345678901234567890
+ 
+-=== ФАЙЛЫ ===
+-lupa.py
+-gazel.py
+-chashka.py
+-max.py
++=== ФАЙЛЫ И ПУТИ (для поиска) ===
++
++Конфигурационные файлы:
++/etc/passwd
++/etc/shadow
++/etc/hosts
++/home/admin/.ssh/id_rsa
++/root/.bash_history
++/var/log/auth.log
++/var/www/html/config.php
++/opt/app/settings.json
++C:\Windows\System32\drivers\etc\hosts
++C:\Users\Admin\AppData\Local\config.xml
++D:\Projects\database\credentials.yml
++/usr/local/etc/nginx/nginx.conf
++/etc/mysql/my.cnf
++~/.gitconfig
++.config/gh/hosts.yml
++
++Логи и журналы:
++/var/log/apache2/access.log
++/var/log/nginx/error.log
++C:\Windows\System32\winevt\Logs\System.evtx
++/opt/app/logs/application.log
++/home/user/.bash_history
++/var/log/syslog
++
++Скрипты и код:
++/home/www/app.py
++/var/www/html/index.php
++/opt/scripts/backup.sh
++C:\Projects\main.py
++/usr/bin/custom_script.py
++/home/admin/deploy.rb
++
++Базы данных:
++/var/lib/mysql/data/users.ibd
++/opt/mongodb/data/dump.bson
++C:\Program Files\PostgreSQL\data\base\backup.sql
++/var/lib/redis/dump.rdb
++
++=== ДОПОЛНИТЕЛЬНЫЕ IP-АДРЕСА ===
++
++Серверы компании:
++172.16.0.1
++172.16.0.254
++10.10.10.10
++10.10.10.20
++192.168.0.1
++192.168.0.100
++192.168.100.50
++10.0.1.1
++10.0.2.1
++172.31.255.255
++
++Публичные адреса:
++8.8.8.8
++8.8.4.4
++1.1.1.1
++208.67.222.222
++93.184.216.34
++151.101.1.140
++
++Подозрительные IP:
++185.220.101.1
++45.33.32.156
++192.42.116.16
++23.129.64.100
++104.244.76.13
++
++=== ДОПОЛНИТЕЛЬНЫЕ EMAIL АДРЕСА ===
++
++Сотрудники:
++john.doe@megasecure.com
++jane.smith@megasecure.com
++security@megasecure.com
++it-support@megasecure.com
++hr@megasecure.com
++finance@megasecure.com
++
++Технические:
++postmaster@megasecure.com
++webmaster@megasecure.com
++noreply@megasecure.com
++alerts@megasecure.com
++monitoring@megasecure.com
++
++Внешние:
++partner@external-company.ru
++vendor@supplier.net
++client@customer.org
++contractor@freelance.io
++
++Подозрительные:
++admin@megasecure-corp.com
++support@megasecure-secure.com
++info@mega-secure-corp.net
++security@megasecure-internal.com
++
++=== URL И ССЫЛКИ ===
++
++Веб-ресурсы:
++https://megasecure.com/admin
++http://internal.megasecure.local:8080
++https://api.megasecure.com/v1/users
++ftp://files.megasecure.com/backup
++https://github.com/nmiwex/case2
++http://192.168.1.100:3000/dashboard
++https://jenkins.megasecure.com/job/deploy
++
++=== ПУТИ К ФАЙЛАМ С ДАННЫМИ ===
++
++Конфиденциальные документы:
++/data/customers/credit_cards.csv
++/backup/2024/02/database_dump.sql
++/home/shared/passwords.txt
++C:\Confidential\financial_report.xlsx
++D:\Backup\users_data.json
++/var/data/clients/personal_info.xlsx
++/opt/secrets/api_keys.env
++
++Системные файлы:
++/proc/version
++/sys/kernel/hostname
++/etc/hostname
++C:\Windows\System32\config\SAM
++/etc/resolv.conf
+ 
+ === ДОПОЛНИТЕЛЬНЫЕ ДАННЫЕ ===
+ 
+@@ -176,4 +298,1199 @@
+ Счет: 40817810099910004312
+ БИК: 044525225
+ ОКПО: 12345678
+-ОГРН: 1157746123456
+\ No newline at end of file
++ОГРН: 1157746123456
++
++=== ЛОГИ СЕРВЕРА ===
++
++192.168.1.100 - - [24/Feb/2026:22:14:03] "GET /search?q=<script>alert('xss')</script>" 200
++203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
++10.0.0.50 - - [24/Feb/2026:22:20:11] "GET /products?id=1' OR '1'='1" 200 "sqlmap"
++198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
++203.0.113.5 - - [24/Feb/2026:22:25:17] "GET /index.php?id=5 UNION SELECT * FROM users" 200
++10.0.0.255 - - [24/Feb/2026:22:30:33] "GET /profile?name=<script>javascript:alert(1)</script>" 200
++198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
++203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
++10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"==================================================ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'==================================================
++ФИНАНСОВЫЕ ДАННЫЕ:
++✰VALID
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++✰INVALID
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++------------------------------
++СЕКРЕТНЫЕ КЛЮЧИ:
++✰API_KEY2
++fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K
++mock_pk_test_4eC39HqLyjWDarjtT1zdp7dc
++test_sk_test_51abc123def456ghi789jkl012mno345pqr678
++VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ
++------------------------------
++СИСТЕМНАЯ ИНФОРМАЦИЯ:
++✰IPV4
++192.168.1.1
++192.168.1.100
++10.0.0.255
++10.0.0.50
++203.0.113.5
++198.51.100.42
++172.16.0.1
++172.16.0.254
++10.10.10.10
++10.10.10.20
++192.168.0.1
++192.168.0.100
++192.168.100.50
++10.0.1.1
++10.0.2.1
++172.31.255.255
++8.8.8.8
++8.8.4.4
++1.1.1.1
++208.67.222.222
++93.184.216.34
++151.101.1.140
++185.220.101.1
++45.33.32.156
++192.42.116.16
++23.129.64.100
++104.244.76.13
++192.168.1.100
++192.168.1.100
++203.0.113.5
++10.0.0.50
++198.51.100.42
++203.0.113.5
++10.0.0.255
++198.51.100.42
++203.0.113.5
++10.0.0.50
++✰EMAIL
++alice.wonderland@securecorp.com
++bob.smith@megasecure.internal
++admin@company-test.ru
++support@megasecure-corp.com
++john.doe@megasecure.com
++jane.smith@megasecure.com
++security@megasecure.com
++it-support@megasecure.com
++hr@megasecure.com
++finance@megasecure.com
++postmaster@megasecure.com
++webmaster@megasecure.com
++noreply@megasecure.com
++alerts@megasecure.com
++monitoring@megasecure.com
++partner@external-company.ru
++vendor@supplier.net
++client@customer.org
++contractor@freelance.io
++admin@megasecure-corp.com
++support@megasecure-secure.com
++info@mega-secure-corp.net
++security@megasecure-internal.com
++✰FILES
++C:\Windows\System32\drivers\etc\hosts
++C:\Users\Admin\AppData\Local\config.xml
++D:\Projects\database\credentials.yml
++C:\Windows\System32\winevt\Logs\System.evtx
++C:\Projects\main.py
++C:\Program Files\PostgreSQL\data\base\backup.sql
++C:\Confidential\financial_report.xlsx
++D:\Backup\users_data.json
++C:\Windows\System32\config\SAM
++✰FILENAME
++auth.log
++config.php
++settings.json
++config.xml
++nginx.conf
++access.log
++error.log
++application.log
++app.py
++index.php
++main.py
++custom_script.py
++credit_cards.csv
++passwords.txt
++users_data.json
++api_keys.env
++resolv.conf
++index.php
++------------------------------
++РАСШИФРОВАННЫЕ СООБЩЕНИЯ:
++✰BASE64
++This is a secret message!
++Confidential Data Leak
++✰HEX
++MyPassword
++SecretKey123
++✰ROT13
++The password is Fhzzre2024!
++SecretKey:12345
++------------------------------
++УГРОЗЫ БЕЗОПАСНОСТИ:
++✰SQL_INJECTIONS
++203.0.113.5 - - [24/Feb/2026:22:25:17] "GET /index.php?id=5 UNION SELECT * FROM users" 200
++10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
++✰XSS_ATTEMPTS
++192.168.1.100 - - [24/Feb/2026:22:14:03] "GET /search?q=<script>alert('xss')</script>" 200
++10.0.0.255 - - [24/Feb/2026:22:30:33] "GET /profile?name=<script>javascript:alert(1)</script>" 200
++✰SUSPICIOUS_USER_AGENTS
++203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
++10.0.0.50 - - [24/Feb/2026:22:20:11] "GET /products?id=1' OR '1'='1" 200 "sqlmap"
++198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
++198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
++203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
++10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
++✰FAILED_LOGINS
++203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
++198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
++198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
++203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
++------------------------------
++НОРМАЛИЗОВАННЫЕ ДАННЫЕ:
++✰PHONES
++✰VALID
+++7 (912) 345-67-89
+++7 (800) 555-35-35
+++7 (495) 123-45-67
+++7 (812) 987-65-43
+++7 (999) 123-45-67
+++7 (900) 123-45-67
+++7 (999) 999-99-99
++✰DATES
++✰NORMALIZED
++25.02.2026
++15.02.2024
++01.03.2023
++31.12.2022
++20.01.2024
++✰INVALID
++168.1.100
++203.0.113
++198.51.100
++345-67-89
++555-35-35
++123-45-67
++987-65-43
++34.4.2021
++2024-99-99
++32.01.2024
++99/99/9999
++16.0.254
++168.0.100
++172.31.255
++208.67.222
++101.1.140
++45.33.32
++192.42.116
++129.64.100
++244.76.13
++✰INN
++✰VALID
++7707083893
++5024002630
++7736050003
++7701020304
++502400263001
++0000000000
++✰INVALID
++9123456789
++1234567890
++123456789012
++500100732255
++770708389301
++9999999999
++1111111111
++222222222222
++3333333333
++444444444444
++5555555555
++666666666666
++7777777777
++888888888888
++✰CARDS
++✰VALID
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++✰INVALID
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++------------------------------
++ Найдено артефактов: 179 
++==================================================КОНЕЦ ОТЧЕТА====================================================================================================ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'==================================================
++ФИНАНСОВЫЕ ДАННЫЕ:
++✰VALID
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++✰INVALID
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++------------------------------
++СЕКРЕТНЫЕ КЛЮЧИ:
++✰API_KEY
++12345
++------------------------------
++УГРОЗЫ БЕЗОПАСНОСТИ:
++✰SQL_INJECTIONS
++203.0.113.5 - - [24/Feb/2026:22:25:17] 
++✰API_KEY2
++fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K
++mock_pk_test_4eC39HqLyjWDarjtT1zdp7dc
++test_sk_test_51abc123def456ghi789jkl012mno345pqr678
++VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ
++fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K
++mock_pk_test_4eC39HqLyjWDarjtT1zdp7dc
++test_sk_test_51abc123def456ghi789jkl012mno345pqr678
++VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ
++------------------------------
++СИСТЕМНАЯ ИНФОРМАЦИЯ:
++✰IPV4
++192.168.1.1
++192.168.1.100
++10.0.0.255
++10.0.0.50
++203.0.113.5
++198.51.100.42
++172.16.0.1
++172.16.0.254
++10.10.10.10
++10.10.10.20
++192.168.0.1
++192.168.0.100
++192.168.100.50
++10.0.1.1
++10.0.2.1
++172.31.255.255
++8.8.8.8
++8.8.4.4
++1.1.1.1
++208.67.222.222
++93.184.216.34
++151.101.1.140
++185.220.101.1
++45.33.32.156
++192.42.116.16
++23.129.64.100
++104.244.76.13
++192.168.1.100
++192.168.1.100
++203.0.113.5
++10.0.0.50
++198.51.100.42
++203.0.113.5
++10.0.0.255
++198.51.100.42
++203.0.113.5
++10.0.0.50
++192.168.1.1
++192.168.1.100
++10.0.0.255
++10.0.0.50
++203.0.113.5
++198.51.100.42
++172.16.0.1
++172.16.0.254
++10.10.10.10
++10.10.10.20
++192.168.0.1
++192.168.0.100
++192.168.100.50
++10.0.1.1
++10.0.2.1
++172.31.255.255
++8.8.8.8
++8.8.4.4
++1.1.1.1
++208.67.222.222
++93.184.216.34
++151.101.1.140
++185.220.101.1
++45.33.32.156
++192.42.116.16
++23.129.64.100
++104.244.76.13
++192.168.1.100
++192.168.1.100
++203.0.113.5
++10.0.0.50
++198.51.100.42
++203.0.113.5
++10.0.0.255
++198.51.100.42
++203.0.113.5
++10.0.0.50
++203.0.113.5
++10.0.0.50
++192.168.1.100
++10.0.0.255
++203.0.113.5
++10.0.0.50
++198.51.100.42
++198.51.100.42
++203.0.113.5
++10.0.0.50
++203.0.113.5
++198.51.100.42
++198.51.100.42
++203.0.113.5
++✰EMAIL
++alice.wonderland@securecorp.com
++bob.smith@megasecure.internal
++admin@company-test.ru
++support@megasecure-corp.com
++john.doe@megasecure.com
++jane.smith@megasecure.com
++security@megasecure.com
++it-support@megasecure.com
++hr@megasecure.com
++finance@megasecure.com
++postmaster@megasecure.com
++webmaster@megasecure.com
++noreply@megasecure.com
++alerts@megasecure.com
++monitoring@megasecure.com
++partner@external-company.ru
++vendor@supplier.net
++client@customer.org
++contractor@freelance.io
++admin@megasecure-corp.com
++support@megasecure-secure.com
++info@mega-secure-corp.net
++security@megasecure-internal.com
++alice.wonderland@securecorp.com
++bob.smith@megasecure.internal
++admin@company-test.ru
++support@megasecure-corp.com
++john.doe@megasecure.com
++jane.smith@megasecure.com
++security@megasecure.com
++it-support@megasecure.com
++hr@megasecure.com
++finance@megasecure.com
++postmaster@megasecure.com
++webmaster@megasecure.com
++noreply@megasecure.com
++alerts@megasecure.com
++monitoring@megasecure.com
++partner@external-company.ru
++vendor@supplier.net
++client@customer.org
++contractor@freelance.io
++admin@megasecure-corp.com
++support@megasecure-secure.com
++info@mega-secure-corp.net
++security@megasecure-internal.com
++✰FILES
++C:\Windows\System32\drivers\etc\hosts
++C:\Users\Admin\AppData\Local\config.xml
++D:\Projects\database\credentials.yml
++C:\Windows\System32\winevt\Logs\System.evtx
++C:\Projects\main.py
++C:\Program Files\PostgreSQL\data\base\backup.sql
++C:\Confidential\financial_report.xlsx
++D:\Backup\users_data.json
++C:\Windows\System32\config\SAM
++C:\Windows\System32\drivers\etc\hosts
++C:\Users\Admin\AppData\Local\config.xml
++D:\Projects\database\credentials.yml
++C:\Windows\System32\winevt\Logs\System.evtx
++C:\Projects\main.py
++C:\Program Files\PostgreSQL\data\base\backup.sql
++C:\Confidential\financial_report.xlsx
++D:\Backup\users_data.json
++C:\Windows\System32\config\SAM
++✰FILENAME
++auth.log
++config.php
++settings.json
++config.xml
++nginx.conf
++access.log
++error.log
++application.log
++app.py
++index.php
++main.py
++custom_script.py
++credit_cards.csv
++passwords.txt
++users_data.json
++api_keys.env
++resolv.conf
++index.php
++config.xml
++main.py
++users_data.json
++auth.log
++config.php
++settings.json
++config.xml
++nginx.conf
++access.log
++error.log
++application.log
++app.py
++index.php
++main.py
++custom_script.py
++credit_cards.csv
++passwords.txt
++users_data.json
++api_keys.env
++resolv.conf
++index.php
++index.php
++------------------------------
++РАСШИФРОВАННЫЕ СООБЩЕНИЯ:
++✰BASE64
++This is a secret message!
++Confidential Data Leak
++✰HEX
++MyPassword
++SecretKey123
++✰ROT13
++The password is Fhzzre2024!
++SecretKey:12345
++------------------------------
++УГРОЗЫ БЕЗОПАСНОСТИ:
++✰SQL_INJECTIONS
++203.0.113.5 - - [24/Feb/2026:22:25:17] "GET /index.php?id=5 UNION SELECT * FROM users" 200
++10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"==================================================ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'==================================================
++10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
++✰XSS_ATTEMPTS
++192.168.1.100 - - [24/Feb/2026:22:14:03] "GET /search?q=<script>alert('xss')</script>" 200
++10.0.0.255 - - [24/Feb/2026:22:30:33] "GET /profile?name=<script>javascript:alert(1)</script>" 200
++✰SUSPICIOUS_USER_AGENTS
++203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
++10.0.0.50 - - [24/Feb/2026:22:20:11] "GET /products?id=1' OR '1'='1" 200 "sqlmap"
++198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
++198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
++203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
++10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"==================================================ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'==================================================
++10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
++✰FAILED_LOGINS
++203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
++198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
++198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
++203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
++------------------------------
++НОРМАЛИЗОВАННЫЕ ДАННЫЕ:
++✰PHONES
++✰VALID
+++7 (912) 345-67-89
+++7 (800) 555-35-35
+++7 (495) 123-45-67
+++7 (812) 987-65-43
+++7 (999) 123-45-67
+++7 (900) 123-45-67
+++7 (999) 999-99-99
++✰DATES
++✰NORMALIZED
++25.02.2026
++15.02.2024
++01.03.2023
++31.12.2022
++20.01.2024
++✰INVALID
++168.1.100
++203.0.113
++198.51.100
++345-67-89
++555-35-35
++123-45-67
++987-65-43
++34.4.2021
++2024-99-99
++32.01.2024
++99/99/9999
++16.0.254
++168.0.100
++172.31.255
++208.67.222
++101.1.140
++45.33.32
++192.42.116
++129.64.100
++244.76.13
++999-99-99
++✰INN
++✰VALID
++7707083893
++5024002630
++7736050003
++7701020304
++502400263001
++0000000000
++✰INVALID
++9123456789
++1234567890
++123456789012
++500100732255
++770708389301
++9999999999
++1111111111
++222222222222
++3333333333
++444444444444
++5555555555
++666666666666
++7777777777
++888888888888
++✰CARDS
++✰VALID
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++✰INVALID
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++------------------------------
++ Найдено артефактов: 308 
++==================================================КОНЕЦ ОТЧЕТА====================================================================================================ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'==================================================
++ФИНАНСОВЫЕ ДАННЫЕ:
++✰VALID
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++✰INVALID
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++------------------------------
++СЕКРЕТНЫЕ КЛЮЧИ:
++✰API_KEY
++12345
++------------------------------
++УГРОЗЫ БЕЗОПАСНОСТИ:
++✰SQL_INJECTIONS
++203.0.113.5 - - [24/Feb/2026:22:25:17] 
++12345
++------------------------------
++УГРОЗЫ БЕЗОПАСНОСТИ:
++✰SQL_INJECTIONS
++203.0.113.5 - - [24/Feb/2026:22:25:17] 
++✰API_KEY2
++fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K
++mock_pk_test_4eC39HqLyjWDarjtT1zdp7dc
++test_sk_test_51abc123def456ghi789jkl012mno345pqr678
++VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ
++fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K
++mock_pk_test_4eC39HqLyjWDarjtT1zdp7dc
++test_sk_test_51abc123def456ghi789jkl012mno345pqr678
++VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ
++fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K
++mock_pk_test_4eC39HqLyjWDarjtT1zdp7dc
++test_sk_test_51abc123def456ghi789jkl012mno345pqr678
++VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ
++fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K
++mock_pk_test_4eC39HqLyjWDarjtT1zdp7dc
++test_sk_test_51abc123def456ghi789jkl012mno345pqr678
++VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ
++------------------------------
++СИСТЕМНАЯ ИНФОРМАЦИЯ:
++✰IPV4
++192.168.1.1
++192.168.1.100
++10.0.0.255
++10.0.0.50
++203.0.113.5
++198.51.100.42
++172.16.0.1
++172.16.0.254
++10.10.10.10
++10.10.10.20
++192.168.0.1
++192.168.0.100
++192.168.100.50
++10.0.1.1
++10.0.2.1
++172.31.255.255
++8.8.8.8
++8.8.4.4
++1.1.1.1
++208.67.222.222
++93.184.216.34
++151.101.1.140
++185.220.101.1
++45.33.32.156
++192.42.116.16
++23.129.64.100
++104.244.76.13
++192.168.1.100
++192.168.1.100
++203.0.113.5
++10.0.0.50
++198.51.100.42
++203.0.113.5
++10.0.0.255
++198.51.100.42
++203.0.113.5
++10.0.0.50
++192.168.1.1
++192.168.1.100
++10.0.0.255
++10.0.0.50
++203.0.113.5
++198.51.100.42
++172.16.0.1
++172.16.0.254
++10.10.10.10
++10.10.10.20
++192.168.0.1
++192.168.0.100
++192.168.100.50
++10.0.1.1
++10.0.2.1
++172.31.255.255
++8.8.8.8
++8.8.4.4
++1.1.1.1
++208.67.222.222
++93.184.216.34
++151.101.1.140
++185.220.101.1
++45.33.32.156
++192.42.116.16
++23.129.64.100
++104.244.76.13
++192.168.1.100
++192.168.1.100
++203.0.113.5
++10.0.0.50
++198.51.100.42
++203.0.113.5
++10.0.0.255
++198.51.100.42
++203.0.113.5
++10.0.0.50
++203.0.113.5
++10.0.0.50
++192.168.1.100
++10.0.0.255
++203.0.113.5
++10.0.0.50
++198.51.100.42
++198.51.100.42
++203.0.113.5
++10.0.0.50
++203.0.113.5
++198.51.100.42
++198.51.100.42
++203.0.113.5
++203.0.113.5
++192.168.1.1
++192.168.1.100
++10.0.0.255
++10.0.0.50
++203.0.113.5
++198.51.100.42
++172.16.0.1
++172.16.0.254
++10.10.10.10
++10.10.10.20
++192.168.0.1
++192.168.0.100
++192.168.100.50
++10.0.1.1
++10.0.2.1
++172.31.255.255
++8.8.8.8
++8.8.4.4
++1.1.1.1
++208.67.222.222
++93.184.216.34
++151.101.1.140
++185.220.101.1
++45.33.32.156
++192.42.116.16
++23.129.64.100
++104.244.76.13
++192.168.1.100
++192.168.1.100
++203.0.113.5
++10.0.0.50
++198.51.100.42
++203.0.113.5
++10.0.0.255
++198.51.100.42
++203.0.113.5
++10.0.0.50
++192.168.1.1
++192.168.1.100
++10.0.0.255
++10.0.0.50
++203.0.113.5
++198.51.100.42
++172.16.0.1
++172.16.0.254
++10.10.10.10
++10.10.10.20
++192.168.0.1
++192.168.0.100
++192.168.100.50
++10.0.1.1
++10.0.2.1
++172.31.255.255
++8.8.8.8
++8.8.4.4
++1.1.1.1
++208.67.222.222
++93.184.216.34
++151.101.1.140
++185.220.101.1
++45.33.32.156
++192.42.116.16
++23.129.64.100
++104.244.76.13
++192.168.1.100
++192.168.1.100
++203.0.113.5
++10.0.0.50
++198.51.100.42
++203.0.113.5
++10.0.0.255
++198.51.100.42
++203.0.113.5
++10.0.0.50
++203.0.113.5
++10.0.0.50
++192.168.1.100
++10.0.0.255
++203.0.113.5
++10.0.0.50
++198.51.100.42
++198.51.100.42
++203.0.113.5
++10.0.0.50
++203.0.113.5
++198.51.100.42
++198.51.100.42
++203.0.113.5
++203.0.113.5
++10.0.0.50
++10.0.0.50
++192.168.1.100
++10.0.0.255
++203.0.113.5
++10.0.0.50
++198.51.100.42
++198.51.100.42
++203.0.113.5
++10.0.0.50
++10.0.0.50
++203.0.113.5
++198.51.100.42
++198.51.100.42
++203.0.113.5
++✰EMAIL
++alice.wonderland@securecorp.com
++bob.smith@megasecure.internal
++admin@company-test.ru
++support@megasecure-corp.com
++john.doe@megasecure.com
++jane.smith@megasecure.com
++security@megasecure.com
++it-support@megasecure.com
++hr@megasecure.com
++finance@megasecure.com
++postmaster@megasecure.com
++webmaster@megasecure.com
++noreply@megasecure.com
++alerts@megasecure.com
++monitoring@megasecure.com
++partner@external-company.ru
++vendor@supplier.net
++client@customer.org
++contractor@freelance.io
++admin@megasecure-corp.com
++support@megasecure-secure.com
++info@mega-secure-corp.net
++security@megasecure-internal.com
++alice.wonderland@securecorp.com
++bob.smith@megasecure.internal
++admin@company-test.ru
++support@megasecure-corp.com
++john.doe@megasecure.com
++jane.smith@megasecure.com
++security@megasecure.com
++it-support@megasecure.com
++hr@megasecure.com
++finance@megasecure.com
++postmaster@megasecure.com
++webmaster@megasecure.com
++noreply@megasecure.com
++alerts@megasecure.com
++monitoring@megasecure.com
++partner@external-company.ru
++vendor@supplier.net
++client@customer.org
++contractor@freelance.io
++admin@megasecure-corp.com
++support@megasecure-secure.com
++info@mega-secure-corp.net
++security@megasecure-internal.com
++alice.wonderland@securecorp.com
++bob.smith@megasecure.internal
++admin@company-test.ru
++support@megasecure-corp.com
++john.doe@megasecure.com
++jane.smith@megasecure.com
++security@megasecure.com
++it-support@megasecure.com
++hr@megasecure.com
++finance@megasecure.com
++postmaster@megasecure.com
++webmaster@megasecure.com
++noreply@megasecure.com
++alerts@megasecure.com
++monitoring@megasecure.com
++partner@external-company.ru
++vendor@supplier.net
++client@customer.org
++contractor@freelance.io
++admin@megasecure-corp.com
++support@megasecure-secure.com
++info@mega-secure-corp.net
++security@megasecure-internal.com
++alice.wonderland@securecorp.com
++bob.smith@megasecure.internal
++admin@company-test.ru
++support@megasecure-corp.com
++john.doe@megasecure.com
++jane.smith@megasecure.com
++security@megasecure.com
++it-support@megasecure.com
++hr@megasecure.com
++finance@megasecure.com
++postmaster@megasecure.com
++webmaster@megasecure.com
++noreply@megasecure.com
++alerts@megasecure.com
++monitoring@megasecure.com
++partner@external-company.ru
++vendor@supplier.net
++client@customer.org
++contractor@freelance.io
++admin@megasecure-corp.com
++support@megasecure-secure.com
++info@mega-secure-corp.net
++security@megasecure-internal.com
++✰FILES
++C:\Windows\System32\drivers\etc\hosts
++C:\Users\Admin\AppData\Local\config.xml
++D:\Projects\database\credentials.yml
++C:\Windows\System32\winevt\Logs\System.evtx
++C:\Projects\main.py
++C:\Program Files\PostgreSQL\data\base\backup.sql
++C:\Confidential\financial_report.xlsx
++D:\Backup\users_data.json
++C:\Windows\System32\config\SAM
++C:\Windows\System32\drivers\etc\hosts
++C:\Users\Admin\AppData\Local\config.xml
++D:\Projects\database\credentials.yml
++C:\Windows\System32\winevt\Logs\System.evtx
++C:\Projects\main.py
++C:\Program Files\PostgreSQL\data\base\backup.sql
++C:\Confidential\financial_report.xlsx
++D:\Backup\users_data.json
++C:\Windows\System32\config\SAM
++C:\Windows\System32\drivers\etc\hosts
++C:\Users\Admin\AppData\Local\config.xml
++D:\Projects\database\credentials.yml
++C:\Windows\System32\winevt\Logs\System.evtx
++C:\Projects\main.py
++C:\Program Files\PostgreSQL\data\base\backup.sql
++C:\Confidential\financial_report.xlsx
++D:\Backup\users_data.json
++C:\Windows\System32\config\SAM
++C:\Windows\System32\drivers\etc\hosts
++C:\Users\Admin\AppData\Local\config.xml
++D:\Projects\database\credentials.yml
++C:\Windows\System32\winevt\Logs\System.evtx
++C:\Projects\main.py
++C:\Program Files\PostgreSQL\data\base\backup.sql
++C:\Confidential\financial_report.xlsx
++D:\Backup\users_data.json
++C:\Windows\System32\config\SAM
++✰FILENAME
++auth.log
++config.php
++settings.json
++config.xml
++nginx.conf
++access.log
++error.log
++application.log
++app.py
++index.php
++main.py
++custom_script.py
++credit_cards.csv
++passwords.txt
++users_data.json
++api_keys.env
++resolv.conf
++index.php
++config.xml
++main.py
++users_data.json
++auth.log
++config.php
++settings.json
++config.xml
++nginx.conf
++access.log
++error.log
++application.log
++app.py
++index.php
++main.py
++custom_script.py
++credit_cards.csv
++passwords.txt
++users_data.json
++api_keys.env
++resolv.conf
++index.php
++index.php
++config.xml
++main.py
++users_data.json
++config.xml
++main.py
++users_data.json
++auth.log
++config.php
++settings.json
++config.xml
++nginx.conf
++access.log
++error.log
++application.log
++app.py
++index.php
++main.py
++custom_script.py
++credit_cards.csv
++passwords.txt
++users_data.json
++api_keys.env
++resolv.conf
++index.php
++config.xml
++main.py
++users_data.json
++auth.log
++config.php
++settings.json
++config.xml
++nginx.conf
++access.log
++error.log
++application.log
++app.py
++index.php
++main.py
++custom_script.py
++credit_cards.csv
++passwords.txt
++users_data.json
++api_keys.env
++resolv.conf
++index.php
++index.php
++index.php
++------------------------------
++РАСШИФРОВАННЫЕ СООБЩЕНИЯ:
++✰BASE64
++This is a secret message!
++Confidential Data Leak
++✰HEX
++MyPassword
++SecretKey123
++✰ROT13
++The password is Fhzzre2024!
++SecretKey:12345
++------------------------------
++УГРОЗЫ БЕЗОПАСНОСТИ:
++✰SQL_INJECTIONS
++203.0.113.5 - - [24/Feb/2026:22:25:17] "GET /index.php?id=5 UNION SELECT * FROM users" 200
++10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"==================================================ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'==================================================
++10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
++✰XSS_ATTEMPTS
++192.168.1.100 - - [24/Feb/2026:22:14:03] "GET /search?q=<script>alert('xss')</script>" 200
++10.0.0.255 - - [24/Feb/2026:22:30:33] "GET /profile?name=<script>javascript:alert(1)</script>" 200
++✰SUSPICIOUS_USER_AGENTS
++203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
++10.0.0.50 - - [24/Feb/2026:22:20:11] "GET /products?id=1' OR '1'='1" 200 "sqlmap"
++198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
++198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
++203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
++10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"==================================================ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'==================================================
++10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
++✰FAILED_LOGINS
++203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
++198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
++198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
++203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
++------------------------------
++НОРМАЛИЗОВАННЫЕ ДАННЫЕ:
++✰PHONES
++✰VALID
+++7 (912) 345-67-89
+++7 (800) 555-35-35
+++7 (495) 123-45-67
+++7 (812) 987-65-43
+++7 (999) 123-45-67
+++7 (900) 123-45-67
+++7 (999) 999-99-99
++✰DATES
++✰NORMALIZED
++25.02.2026
++15.02.2024
++01.03.2023
++31.12.2022
++20.01.2024
++✰INVALID
++168.1.100
++203.0.113
++198.51.100
++345-67-89
++555-35-35
++123-45-67
++987-65-43
++34.4.2021
++2024-99-99
++32.01.2024
++99/99/9999
++16.0.254
++168.0.100
++172.31.255
++208.67.222
++101.1.140
++45.33.32
++192.42.116
++129.64.100
++244.76.13
++999-99-99
++✰INN
++✰VALID
++7707083893
++5024002630
++7736050003
++7701020304
++502400263001
++0000000000
++✰INVALID
++9123456789
++1234567890
++123456789012
++500100732255
++770708389301
++9999999999
++1111111111
++222222222222
++3333333333
++444444444444
++5555555555
++666666666666
++7777777777
++888888888888
++✰CARDS
++✰VALID
++4532451287952109
++4111111111111111
++5500000000000004
++6011000000000004
++✰INVALID
++3400000000000090
++1234567890123456
++4485275098341234
++3530111111111111
++------------------------------
++ Найдено артефактов: 565 
++==================================================КОНЕЦ ОТЧЕТА==================================================
+\ No newline at end of file
+Index: .idea/workspace.xml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+><?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n<project version=\"4\">\r\n  <component name=\"AutoImportSettings\">\r\n    <option name=\"autoReloadType\" value=\"SELECTIVE\" />\r\n  </component>\r\n  <component name=\"ChangeListManager\">\r\n    <list default=\"true\" id=\"c3f400d5-85d4-49a6-8c4c-412ad7eba5d2\" name=\"Changes\" comment=\"\">\r\n      <change beforePath=\"$PROJECT_DIR$/.idea/workspace.xml\" beforeDir=\"false\" afterPath=\"$PROJECT_DIR$/.idea/workspace.xml\" afterDir=\"false\" />\r\n    </list>\r\n    <option name=\"SHOW_DIALOG\" value=\"false\" />\r\n    <option name=\"HIGHLIGHT_CONFLICTS\" value=\"true\" />\r\n    <option name=\"HIGHLIGHT_NON_ACTIVE_CHANGELIST\" value=\"false\" />\r\n    <option name=\"LAST_RESOLUTION\" value=\"IGNORE\" />\r\n  </component>\r\n  <component name=\"Git.Settings\">\r\n    <option name=\"RECENT_BRANCH_BY_REPOSITORY\">\r\n      <map>\r\n        <entry key=\"$PROJECT_DIR$\" value=\"Work\" />\r\n      </map>\r\n    </option>\r\n    <option name=\"RECENT_GIT_ROOT_PATH\" value=\"$PROJECT_DIR$\" />\r\n  </component>\r\n  <component name=\"GitHubPullRequestSearchHistory\">{\r\n  &quot;lastFilter&quot;: {\r\n    &quot;state&quot;: &quot;OPEN&quot;,\r\n    &quot;assignee&quot;: &quot;nmiwex&quot;\r\n  }\r\n}</component>\r\n  <component name=\"GithubPullRequestsUISettings\"><![CDATA[{\r\n  \"selectedUrlAndAccountId\": {\r\n    \"url\": \"https://github.com/nmiwex/case2.git\",\r\n    \"accountId\": \"bc932e6f-90f5-4382-9686-7edfbaee1b31\"\r\n  }\r\n}]]></component>\r\n  <component name=\"ProjectColorInfo\">{\r\n  &quot;associatedIndex&quot;: 6\r\n}</component>\r\n  <component name=\"ProjectId\" id=\"3ACxERcJuJ2nFc6E92rURh7duzn\" />\r\n  <component name=\"ProjectViewState\">\r\n    <option name=\"hideEmptyMiddlePackages\" value=\"true\" />\r\n    <option name=\"showLibraryContents\" value=\"true\" />\r\n  </component>\r\n  <component name=\"PropertiesComponent\"><![CDATA[{\r\n  \"keyToString\": {\r\n    \"ModuleVcsDetector.initialDetectionPerformed\": \"true\",\r\n    \"Python.data shield operation.executor\": \"Run\",\r\n    \"RunOnceActivity.ShowReadmeOnStart\": \"true\",\r\n    \"RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252\": \"true\",\r\n    \"RunOnceActivity.git.unshallow\": \"true\",\r\n    \"SHARE_PROJECT_CONFIGURATION_FILES\": \"true\",\r\n    \"git-widget-placeholder\": \"#1 on Work\",\r\n    \"settings.editor.selected.configurable\": \"com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable\"\r\n  }\r\n}]]></component>\r\n  <component name=\"RunManager\">\r\n    <configuration name=\"data shield operation\" type=\"PythonConfigurationType\" factoryName=\"Python\" nameIsGenerated=\"true\">\r\n      <module name=\"case-2\" />\r\n      <option name=\"ENV_FILES\" value=\"\" />\r\n      <option name=\"INTERPRETER_OPTIONS\" value=\"\" />\r\n      <option name=\"PARENT_ENVS\" value=\"true\" />\r\n      <envs>\r\n        <env name=\"PYTHONUNBUFFERED\" value=\"1\" />\r\n      </envs>\r\n      <option name=\"SDK_HOME\" value=\"\" />\r\n      <option name=\"WORKING_DIRECTORY\" value=\"$PROJECT_DIR$\" />\r\n      <option name=\"IS_MODULE_SDK\" value=\"false\" />\r\n      <option name=\"ADD_CONTENT_ROOTS\" value=\"true\" />\r\n      <option name=\"ADD_SOURCE_ROOTS\" value=\"true\" />\r\n      <option name=\"SCRIPT_NAME\" value=\"$PROJECT_DIR$/data shield operation.py\" />\r\n      <option name=\"PARAMETERS\" value=\"\" />\r\n      <option name=\"SHOW_COMMAND_LINE\" value=\"false\" />\r\n      <option name=\"EMULATE_TERMINAL\" value=\"false\" />\r\n      <option name=\"MODULE_MODE\" value=\"false\" />\r\n      <option name=\"REDIRECT_INPUT\" value=\"false\" />\r\n      <option name=\"INPUT_FILE\" value=\"\" />\r\n      <method v=\"2\" />\r\n    </configuration>\r\n  </component>\r\n  <component name=\"SharedIndexes\">\r\n    <attachedChunks>\r\n      <set>\r\n        <option value=\"bundled-python-sdk-b3ae9b5d7125-f0eec537fc84-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.23892.439\" />\r\n      </set>\r\n    </attachedChunks>\r\n  </component>\r\n  <component name=\"TaskManager\">\r\n    <task active=\"true\" id=\"Default\" summary=\"Default task\">\r\n      <changelist id=\"c3f400d5-85d4-49a6-8c4c-412ad7eba5d2\" name=\"Changes\" comment=\"\" />\r\n      <created>1772110241177</created>\r\n      <option name=\"number\" value=\"Default\" />\r\n      <option name=\"presentableId\" value=\"Default\" />\r\n      <updated>1772110241177</updated>\r\n    </task>\r\n    <servers />\r\n  </component>\r\n  <component name=\"Vcs.Log.Tabs.Properties\">\r\n    <option name=\"TAB_STATES\">\r\n      <map>\r\n        <entry key=\"MAIN\">\r\n          <value>\r\n            <State />\r\n          </value>\r\n        </entry>\r\n      </map>\r\n    </option>\r\n  </component>\r\n  <component name=\"XDebuggerManager\">\r\n    <breakpoint-manager>\r\n      <breakpoints>\r\n        <line-breakpoint enabled=\"true\" suspend=\"THREAD\" type=\"python-line\">\r\n          <url>file://$PROJECT_DIR$/data shield operation.py</url>\r\n          <line>468</line>\r\n          <option name=\"timeStamp\" value=\"1\" />\r\n        </line-breakpoint>\r\n      </breakpoints>\r\n    </breakpoint-manager>\r\n  </component>\r\n</project>
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.idea/workspace.xml b/.idea/workspace.xml
+--- a/.idea/workspace.xml	(revision 13cf30e417e5b471cae7969ba0303fe464634d77)
++++ b/.idea/workspace.xml	(date 1772612227037)
+@@ -6,6 +6,8 @@
+   <component name="ChangeListManager">
+     <list default="true" id="c3f400d5-85d4-49a6-8c4c-412ad7eba5d2" name="Changes" comment="">
+       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/data shield operation.py" beforeDir="false" afterPath="$PROJECT_DIR$/data shield operation.py" afterDir="false" />
++      <change beforePath="$PROJECT_DIR$/input1.txt" beforeDir="false" afterPath="$PROJECT_DIR$/input1.txt" afterDir="false" />
+     </list>
+     <option name="SHOW_DIALOG" value="false" />
+     <option name="HIGHLIGHT_CONFLICTS" value="true" />
+@@ -26,12 +28,12 @@
+     &quot;assignee&quot;: &quot;nmiwex&quot;
+   }
+ }</component>
+-  <component name="GithubPullRequestsUISettings"><![CDATA[{
+-  "selectedUrlAndAccountId": {
+-    "url": "https://github.com/nmiwex/case2.git",
+-    "accountId": "bc932e6f-90f5-4382-9686-7edfbaee1b31"
++  <component name="GithubPullRequestsUISettings">{
++  &quot;selectedUrlAndAccountId&quot;: {
++    &quot;url&quot;: &quot;https://github.com/nmiwex/case2.git&quot;,
++    &quot;accountId&quot;: &quot;b33840e8-3aef-4396-a5fd-c0f1b2edb975&quot;
+   }
+-}]]></component>
++}</component>
+   <component name="ProjectColorInfo">{
+   &quot;associatedIndex&quot;: 6
+ }</component>
+@@ -42,13 +44,12 @@
+   </component>
+   <component name="PropertiesComponent"><![CDATA[{
+   "keyToString": {
+-    "ModuleVcsDetector.initialDetectionPerformed": "true",
+     "Python.data shield operation.executor": "Run",
+     "RunOnceActivity.ShowReadmeOnStart": "true",
+     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+     "RunOnceActivity.git.unshallow": "true",
+     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+-    "git-widget-placeholder": "#1 on Work",
++    "git-widget-placeholder": "Work",
+     "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+   }
+ }]]></component>
+@@ -79,7 +80,7 @@
+   <component name="SharedIndexes">
+     <attachedChunks>
+       <set>
+-        <option value="bundled-python-sdk-b3ae9b5d7125-f0eec537fc84-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.23892.439" />
++        <option value="bundled-python-sdk-ce6832f46686-7b97d883f26b-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-252.25557.178" />
+       </set>
+     </attachedChunks>
+   </component>
+@@ -104,15 +105,4 @@
+       </map>
+     </option>
+   </component>
+-  <component name="XDebuggerManager">
+-    <breakpoint-manager>
+-      <breakpoints>
+-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+-          <url>file://$PROJECT_DIR$/data shield operation.py</url>
+-          <line>468</line>
+-          <option name="timeStamp" value="1" />
+-        </line-breakpoint>
+-      </breakpoints>
+-    </breakpoint-manager>
+-  </component>
+ </project>
+\ No newline at end of file

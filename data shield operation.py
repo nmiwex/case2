@@ -358,6 +358,18 @@ def normalize_and_validate(text):
         except ValueError:
             add_unique(date, result['dates']['invalid'])
 
+#card numbers
+    for _ in re.finditer(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}'
+                              r'[\s./\\-]?\d{4}[\s./\\-]?\d{4})', text):
+        card = _.group(0).strip()
+        clean_card = re.sub(r'\D', '', card)
+
+        if len(clean_card) == 16 and luhn_algorithm(clean_card):
+            result['cards']['valid'].append(clean_card)
+        else:
+            result['cards']['invalid'].append(clean_card)
+
+    return result
 
 def generate_comprehensive_report(text):
     """Generate a full investigation report"""

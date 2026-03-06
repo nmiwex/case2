@@ -383,7 +383,7 @@ def generate_comprehensive_report(text):
     return report_res
 
 
-def print_report(report_data, file):
+def print_report(report_data):
     """Demonstrate the report beautifully"""
     sections = [('ФИНАНСОВЫЕ ДАННЫЕ', report_data['financial_data']),
                 ('СЕКРЕТНЫЕ КЛЮЧИ', report['secrets']),
@@ -425,30 +425,13 @@ def print_report(report_data, file):
 
 
 def extract_artifacts(filename):
-    artifacts = set()
 
     if not os.path.exists(filename):
-        return artifacts
+        raise FileNotFoundError
 
     with open(filename, 'r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-
-            if (
-                not line or
-                line.startswith('=') or
-                line.startswith('-') or
-                line.startswith('✰') or
-                line.endswith(':') or
-                'ОТЧЕТ' in line or
-                'КОНЕЦ ОТЧЕТА' in line or
-                'Найдено артефактов' in line
-            ):
-                continue
-
-            artifacts.add(line)
-
-    return artifacts
+        length = re.search(r'Найдено артефактов: (\d+)', f.read())
+    return length.group(1)
 
 
 def compare_all():
@@ -458,7 +441,7 @@ def compare_all():
     print('=' * 60)
     print('СРАВНЕНИЕ КОМАНД')
     print('=' * 60)
-    print(f'\nКоманда 1 нашла: {len(base_artifacts)} артефактов\n')
+    print(f'\nКоманда 1 нашла: {base_artifacts} артефактов\n')
 
     for i in range(2, 11):
         filename = f'result{i}.txt'
@@ -493,5 +476,5 @@ if __name__ == '__main__':
     with open('input1.txt', 'r+', encoding='utf-8') as f:
         main_text = f.read()
         report = generate_comprehensive_report(main_text)
-        print_report(report, f)
+        print_report(report)
         compare_all()

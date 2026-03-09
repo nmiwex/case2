@@ -1,4 +1,4 @@
-# operation_data_shield.py
+    # operation_data_shield.py
 import re
 import base64
 import codecs
@@ -358,7 +358,7 @@ def normalize_and_validate(text):
         except ValueError:
             add_unique(date, result['dates']['invalid'])
 
-    #card numbers
+#card numbers
     for _ in re.finditer(r'Номер карты:\s*(\d{4}[\s./\\-]?\d{4}'
                               r'[\s./\\-]?\d{4}[\s./\\-]?\d{4})', text):
         card = _.group(0).strip()
@@ -383,7 +383,7 @@ def generate_comprehensive_report(text):
     return report_res
 
 
-def print_report(report_data):
+def print_report(report_data, file):
     """Demonstrate the report beautifully"""
     sections = [('ФИНАНСОВЫЕ ДАННЫЕ', report_data['financial_data']),
                 ('СЕКРЕТНЫЕ КЛЮЧИ', report['secrets']),
@@ -392,89 +392,67 @@ def print_report(report_data):
                 ('УГРОЗЫ БЕЗОПАСНОСТИ', report['security_threats']),
                 ('НОРМАЛИЗОВАННЫЕ ДАННЫЕ', report_data['normalized_data'])]
 
-    with open('result1.txt', 'w', encoding='utf-8') as file:
-        file.write('=' * 50 + "ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'" + '=' * 50)
-        total_sum = []
+    file.write('=' * 50 + "ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'" + '=' * 50)
+    total_sum = []
 
 
-        def find_artifacts(art, key=None):
-            if art is None:
-                file.write(f'\nНичего не найдено')
-            if isinstance(art, dict):
-                for k, v in art.items():
-                    if v:
-                        file.write(f'\n✰{k.upper()}')
-                    find_artifacts(v, key=k)
-                return
-            elif isinstance(art, list):
-                for item in art:
-                    find_artifacts(item)
-                return
-            elif isinstance(art, str):
-                file.write(f'\n{art}')
-                total_sum.append(art)
+    def find_artifacts(art, key=None):
+        if art is None:
+            file.write(f'\nНичего не найдено')
+        if isinstance(art, dict):
+            for k, v in art.items():
+                if v:
+                    file.write(f'\n✰{k.upper()}')
+                find_artifacts(v, key=k)
+            return
+        elif isinstance(art, list):
+            for item in art:
+                find_artifacts(item)
+            return
+        elif isinstance(art, str):
+            file.write(f'\n{art}')
+            total_sum.append(art)
 
 
-        for title, data in sections:
-            file.write(f'\n{title}:')
-            find_artifacts(data)
-            file.write('\n' + '-' * 30)
-
-        file.write(f'\n\tНайдено артефактов: {len(total_sum)} \n')
-        file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)
+    for title, data in sections:
+        file.write(f'\n{title}:')
+        find_artifacts(data)
+        file.write('\n' + '-' * 30)
+    file.write(f'\n Найдено артефактов: {len(total_sum)} \n')
+    file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)
 
 
 def extract_artifacts(filename):
+    artifacts = set()
 
     if not os.path.exists(filename):
-        raise FileNotFoundError
+        return artifacts
 
     with open(filename, 'r', encoding='utf-8') as f:
-        length = re.search(r'Найдено артефактов: (\d+)', f.read())
-    return length.group(1)
+        for line in f:
+            line = line.strip()
 
+            if (
+                not line or
+                line.startswith('=') or
+                line.startswith('-') or
+                line.startswith('✰') or
+                line.endswith(':') or
+                'ОТЧЕТ' in line or
+                'КОНЕЦ ОТЧЕТА' in line or
+                'Найдено артефактов' in line
+            ):
+                continue
 
-def compare_all():
-    base_file = 'result1.txt'
-    base_artifacts = extract_artifacts(base_file)
+            artifacts.add(line)
 
-    print('=' * 60)
-    print('СРАВНЕНИЕ КОМАНД')
-    print('=' * 60)
-    print(f'\nКоманда 1 нашла: {base_artifacts} артефактов\n')
+    return artifacts
 
-    for i in range(2, 11):
-        filename = f'result{i}.txt'
-
-        if not os.path.exists(filename):
-            continue
-
-        team_artifacts = extract_artifacts(filename)
-
-        common = base_artifacts & team_artifacts
-        only_base = base_artifacts - team_artifacts
-        only_other = team_artifacts - base_artifacts
-
-        print('-' * 60)
-        print(f'Сравнение result1.txt и {filename}')
-        print(f'У них найдено: {len(team_artifacts)}')
-        print(f'Общие артефакты: {len(common)}')
-        print(f'Мы нашли, они нет: {len(only_base)}')
-        print(f'Они нашли, мы нет: {len(only_other)}')
-
-        if only_other:
-            print('\nПотери нашей команды:')
-            for item in sorted(only_other):
-                print(item)
-
-    print('\n' + '=' * 60)
-    print('Сравнение завершено')
-    print('=' * 60)
 
 
 if __name__ == '__main__':
-    with open('input1.txt', 'r+', encoding='utf-8') as f:
+    with open('input1.txt', 'r', encoding='utf-8') as f:
         main_text = f.read()
         report = generate_comprehensive_report(main_text)
-        print_report(report)
-        compare_all()
+        with open('result1.txt', 'w', encoding='utf-8') as output_file:
+            print_report(report, output_file)

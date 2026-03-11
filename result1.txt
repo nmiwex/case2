@@ -1,219 +1,208 @@
 ==================================================ОТЧЕТ ОПЕРАЦИИ 'DATA SHIELD'==================================================
 ФИНАНСОВЫЕ ДАННЫЕ:
 ✰VALID
-4532451287952109
-4111111111111111
-5500000000000004
-6011000000000004
+1. 4532451287952109
+2. 4111111111111111
+3. 5500000000000004
+4. 6011000000000004
 ✰INVALID
-3400000000000090
-1234567890123456
-4485275098341234
-3530111111111111
+5. 3400000000000090
+6. 1234567890123456
+7. 4485275098341234
+8. 3530111111111111
 ------------------------------
 СЕКРЕТНЫЕ КЛЮЧИ:
 ✰API_KEY2
-fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K
-mock_pk_test_4eC39HqLyjWDarjtT1zdp7dc
-test_sk_test_51abc123def456ghi789jkl012mno345pqr678
-VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ
+9. fake_sk_live_51Mn8cB7xY9zA1b2C3d4E5f6G7h8I9j0K
+10. mock_pk_test_4eC39HqLyjWDarjtT1zdp7dc
+11. test_sk_test_51abc123def456ghi789jkl012mno345pqr678
+12. VGhpcyBpcyBhIHNlY3JldCBtZXNzYWdlIQ
 ------------------------------
 СИСТЕМНАЯ ИНФОРМАЦИЯ:
 ✰IPV4
-192.168.1.1
-192.168.1.100
-10.0.0.255
-10.0.0.50
-203.0.113.5
-198.51.100.42
-172.16.0.1
-172.16.0.254
-10.10.10.10
-10.10.10.20
-192.168.0.1
-192.168.0.100
-192.168.100.50
-10.0.1.1
-10.0.2.1
-172.31.255.255
-8.8.8.8
-8.8.4.4
-1.1.1.1
-208.67.222.222
-93.184.216.34
-151.101.1.140
-185.220.101.1
-45.33.32.156
-192.42.116.16
-23.129.64.100
-104.244.76.13
-192.168.1.100
-192.168.1.100
-203.0.113.5
-10.0.0.50
-198.51.100.42
-203.0.113.5
-10.0.0.255
-198.51.100.42
-203.0.113.5
-10.0.0.50
+13. 192.168.1.1
+14. 192.168.1.100
+15. 10.0.0.255
+16. 10.0.0.50
+17. 203.0.113.5
+18. 198.51.100.42
+19. 172.16.0.1
+20. 172.16.0.254
+21. 10.10.10.10
+22. 10.10.10.20
+23. 192.168.0.1
+24. 192.168.0.100
+25. 192.168.100.50
+26. 10.0.1.1
+27. 10.0.2.1
+28. 172.31.255.255
+29. 8.8.8.8
+30. 8.8.4.4
+31. 1.1.1.1
+32. 208.67.222.222
+33. 93.184.216.34
+34. 151.101.1.140
+35. 185.220.101.1
+36. 45.33.32.156
+37. 192.42.116.16
+38. 23.129.64.100
+39. 104.244.76.13
 ✰EMAIL
-alice.wonderland@securecorp.com
-bob.smith@megasecure.internal
-admin@company-test.ru
-support@megasecure-corp.com
-john.doe@megasecure.com
-jane.smith@megasecure.com
-security@megasecure.com
-it-support@megasecure.com
-hr@megasecure.com
-finance@megasecure.com
-postmaster@megasecure.com
-webmaster@megasecure.com
-noreply@megasecure.com
-alerts@megasecure.com
-monitoring@megasecure.com
-partner@external-company.ru
-vendor@supplier.net
-client@customer.org
-contractor@freelance.io
-admin@megasecure-corp.com
-support@megasecure-secure.com
-info@mega-secure-corp.net
-security@megasecure-internal.com
+40. alice.wonderland@securecorp.com
+41. bob.smith@megasecure.internal
+42. admin@company-test.ru
+43. support@megasecure-corp.com
+44. john.doe@megasecure.com
+45. jane.smith@megasecure.com
+46. security@megasecure.com
+47. it-support@megasecure.com
+48. hr@megasecure.com
+49. finance@megasecure.com
+50. postmaster@megasecure.com
+51. webmaster@megasecure.com
+52. noreply@megasecure.com
+53. alerts@megasecure.com
+54. monitoring@megasecure.com
+55. partner@external-company.ru
+56. vendor@supplier.net
+57. client@customer.org
+58. contractor@freelance.io
+59. admin@megasecure-corp.com
+60. support@megasecure-secure.com
+61. info@mega-secure-corp.net
+62. security@megasecure-internal.com
 ✰FILES
-C:\Windows\System32\drivers\etc\hosts
-C:\Users\Admin\AppData\Local\config.xml
-D:\Projects\database\credentials.yml
-C:\Windows\System32\winevt\Logs\System.evtx
-C:\Projects\main.py
-C:\Program Files\PostgreSQL\data\base\backup.sql
-C:\Confidential\financial_report.xlsx
-D:\Backup\users_data.json
-C:\Windows\System32\config\SAM
+63. C:\Windows\System32\drivers\etc\hosts
+64. C:\Users\Admin\AppData\Local\config.xml
+65. D:\Projects\database\credentials.yml
+66. C:\Windows\System32\winevt\Logs\System.evtx
+67. C:\Projects\main.py
+68. C:\Program Files\PostgreSQL\data\base\backup.sql
+69. C:\Confidential\financial_report.xlsx
+70. D:\Backup\users_data.json
+71. C:\Windows\System32\config\SAM
 ✰FILENAME
-auth.log
-config.php
-settings.json
-config.xml
-nginx.conf
-access.log
-error.log
-application.log
-app.py
-index.php
-main.py
-custom_script.py
-credit_cards.csv
-passwords.txt
-users_data.json
-api_keys.env
-resolv.conf
-index.php
+72. auth.log
+73. config.php
+74. settings.json
+75. config.xml
+76. nginx.conf
+77. access.log
+78. error.log
+79. application.log
+80. app.py
+81. index.php
+82. main.py
+83. custom_script.py
+84. credit_cards.csv
+85. passwords.txt
+86. users_data.json
+87. api_keys.env
+88. resolv.conf
 ------------------------------
 РАСШИФРОВАННЫЕ СООБЩЕНИЯ:
 ✰BASE64
-This is a secret message!
-Confidential Data Leak
+89. This is a secret message!
+90. Confidential Data Leak
 ✰HEX
-MyPassword
-SecretKey123
+91. MyPassword
+92. SecretKey123
 ✰ROT13
-The password is Fhzzre2024!
-SecretKey:12345
+93. The password is Fhzzre2024!
+94. SecretKey:12345
 ------------------------------
 УГРОЗЫ БЕЗОПАСНОСТИ:
 ✰SQL_INJECTIONS
-203.0.113.5 - - [24/Feb/2026:22:25:17] "GET /index.php?id=5 UNION SELECT * FROM users" 200
-10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
+95. 203.0.113.5 - - [24/Feb/2026:22:25:17] "GET /index.php?id=5 UNION SELECT * FROM users" 200
+96. 10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
 ✰XSS_ATTEMPTS
-192.168.1.100 - - [24/Feb/2026:22:14:03] "GET /search?q=<script>alert('xss')</script>" 200
-10.0.0.255 - - [24/Feb/2026:22:30:33] "GET /profile?name=<script>javascript:alert(1)</script>" 200
+97. 192.168.1.100 - - [24/Feb/2026:22:14:03] "GET /search?q=<script>alert('xss')</script>" 200
+98. 10.0.0.255 - - [24/Feb/2026:22:30:33] "GET /profile?name=<script>javascript:alert(1)</script>" 200
 ✰SUSPICIOUS_USER_AGENTS
-203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
-10.0.0.50 - - [24/Feb/2026:22:20:11] "GET /products?id=1' OR '1'='1" 200 "sqlmap"
-198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
-198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
-203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
-10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
+99. 203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
+100. 10.0.0.50 - - [24/Feb/2026:22:20:11] "GET /products?id=1' OR '1'='1" 200 "sqlmap"
+101. 198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
+102. 198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
+103. 203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
+104. 10.0.0.50 - - [25/Feb/2026:00:15:27] "GET /products?id=3 DROP TABLE users" 500 "sqlmap"
 ✰FAILED_LOGINS
-203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
-198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
-198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
-203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
+105. 203.0.113.5 - - [24/Feb/2026:22:16:44] "GET /admin" 401 "EvilBot/1.0"
+106. 198.51.100.42 - - [24/Feb/2026:22:22:09] "POST /login" 401 "python-requests"
+107. 198.51.100.42 - - [24/Feb/2026:22:37:44] "GET /admin" 401 "curl"
+108. 203.0.113.5 - - [25/Feb/2026:00:02:18] "POST /login" 401 "EvilBot/2.1"
 ------------------------------
 НОРМАЛИЗОВАННЫЕ ДАННЫЕ:
 ✰PHONES
 ✰VALID
-+7 (912) 345-67-89
-+7 (800) 555-35-35
-+7 (495) 123-45-67
-+7 (812) 987-65-43
-+7 (999) 123-45-67
-+7 (900) 123-45-67
-+7 (999) 999-99-99
+109. +7 (912) 345-67-89
+110. +7 (800) 555-35-35
+111. +7 (495) 123-45-67
+112. +7 (812) 987-65-43
+113. +7 (999) 123-45-67
+114. +7 (900) 123-45-67
+115. +7 (999) 999-99-99
 ✰DATES
 ✰NORMALIZED
-25.02.2026
-15.02.2024
-01.03.2023
-31.12.2022
-20.01.2024
+116. 25.02.2026
+117. 15.02.2024
+118. 01.03.2023
+119. 31.12.2022
+120. 20.01.2024
 ✰INVALID
-168.1.100
-203.0.113
-198.51.100
-345-67-89
-555-35-35
-123-45-67
-987-65-43
-34.4.2021
-2024-99-99
-32.01.2024
-99/99/9999
-16.0.254
-168.0.100
-172.31.255
-208.67.222
-101.1.140
-45.33.32
-192.42.116
-129.64.100
-244.76.13
+121. 168.1.100
+122. 203.0.113
+123. 198.51.100
+124. 345-67-89
+125. 555-35-35
+126. 123-45-67
+127. 987-65-43
+128. 34.4.2021
+129. 2024-99-99
+130. 32.01.2024
+131. 99/99/9999
+132. 16.0.254
+133. 168.0.100
+134. 172.31.255
+135. 208.67.222
+136. 101.1.140
+137. 45.33.32
+138. 192.42.116
+139. 129.64.100
+140. 244.76.13
 ✰INN
 ✰VALID
-7707083893
-5024002630
-7736050003
-7701020304
-502400263001
-0000000000
+141. 7707083893
+142. 5024002630
+143. 7736050003
+144. 7701020304
+145. 502400263001
+146. 0000000000
 ✰INVALID
-9123456789
-1234567890
-123456789012
-500100732255
-770708389301
-9999999999
-1111111111
-222222222222
-3333333333
-444444444444
-5555555555
-666666666666
-7777777777
-888888888888
+147. 9123456789
+148. 1234567890
+149. 123456789012
+150. 500100732255
+151. 770708389301
+152. 9999999999
+153. 1111111111
+154. 222222222222
+155. 3333333333
+156. 444444444444
+157. 5555555555
+158. 666666666666
+159. 7777777777
+160. 888888888888
 ✰CARDS
 ✰VALID
-4532451287952109
-4111111111111111
-5500000000000004
-6011000000000004
+161. 4532451287952109
+162. 4111111111111111
+163. 5500000000000004
+164. 6011000000000004
 ✰INVALID
-3400000000000090
-1234567890123456
-4485275098341234
-3530111111111111
+165. 3400000000000090
+166. 1234567890123456
+167. 4485275098341234
+168. 3530111111111111
 ------------------------------
- Найдено артефактов: 179
+	Найдено артефактов: 168 
 ==================================================КОНЕЦ ОТЧЕТА==================================================

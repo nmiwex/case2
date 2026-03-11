@@ -418,7 +418,7 @@ def print_report(report_data, file):
         file.write(f'\n{title}:')
         find_artifacts(data)
         file.write('\n' + '-' * 30)
-    file.write(f'\n Найдено артефактов: {len(total_sum)} \n')
+    file.write(f'\n Найдено артефактов: {len(total_sum)}\n')
     file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)
 
 

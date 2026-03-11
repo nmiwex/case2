@@ -29,14 +29,19 @@ def extract_artifacts(filename):
 
 
 def compare_all():
-    base_file = "result1.txt"
-    base_artifacts = extract_artifacts(base_file)
+    inputs = [name for name in os.listdir()
+            if os.path.isfile(name)
+            and name.startswith('result')]
+    for i in inputs:
+        #base_file = "result1.txt"
+        base_artifacts = extract_artifacts(i)
+        print(f"\nКоманда {inputs.index(i) + 1} нашла: {len(base_artifacts)} артефактов\n")
 
     print("=" * 60)
     print("СРАВНЕНИЕ КОМАНД")
     print("=" * 60)
 
-    print(f"\nКоманда 1 нашла: {len(base_artifacts)} артефактов\n")
+
 
     for i in range(2, 11):
         filename = f"result{i}.txt"

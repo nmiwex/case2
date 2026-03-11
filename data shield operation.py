@@ -1,4 +1,4 @@
-# operation_data_shield.py
+    # operation_data_shield.py
 import re
 import base64
 import codecs
@@ -418,7 +418,7 @@ def print_report(report_data, file):
         file.write(f'\n{title}:')
         find_artifacts(data)
         file.write('\n' + '-' * 30)
-    file.write(f'\n Найдено артефактов: {len(total_sum)} \n')
+    file.write(f'\n Найдено артефактов: {len(total_sum)}\n')
     file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)
 
 
@@ -449,47 +449,10 @@ def extract_artifacts(filename):
     return artifacts
 
 
-def compare_all():
-    base_file = 'result1.txt'
-    base_artifacts = extract_artifacts(base_file)
-
-    print('=' * 60)
-    print('СРАВНЕНИЕ КОМАНД')
-    print('=' * 60)
-    print(f'\nКоманда 1 нашла: {len(base_artifacts)} артефактов\n')
-
-    for i in range(2, 11):
-        filename = f'result{i}.txt'
-
-        if not os.path.exists(filename):
-            continue
-
-        team_artifacts = extract_artifacts(filename)
-
-        common = base_artifacts & team_artifacts
-        only_base = base_artifacts - team_artifacts
-        only_other = team_artifacts - base_artifacts
-
-        print('-' * 60)
-        print(f'Сравнение result1.txt и {filename}')
-        print(f'У них найдено: {len(team_artifacts)}')
-        print(f'Общие артефакты: {len(common)}')
-        print(f'Мы нашли, они нет: {len(only_base)}')
-        print(f'Они нашли, мы нет: {len(only_other)}')
-
-        if only_other:
-            print('\nПотери нашей команды:')
-            for item in sorted(only_other):
-                print(item)
-
-    print('\n' + '=' * 60)
-    print('Сравнение завершено')
-    print('=' * 60)
-
 
 if __name__ == '__main__':
-    with open('input1.txt', 'r+', encoding='utf-8') as f:
+    with open('input1.txt', 'r', encoding='utf-8') as f:
         main_text = f.read()
         report = generate_comprehensive_report(main_text)
-        print_report(report, f)
-        compare_all()
+        with open('result1.txt', 'w', encoding='utf-8') as output_file:
+            print_report(report, output_file)

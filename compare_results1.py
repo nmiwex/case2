@@ -2,7 +2,7 @@ import os
 
 
 def extract_artifacts(filename):
-    artifacts = set()
+    artifacts = []
 
     if not os.path.exists(filename):
         return artifacts
@@ -23,44 +23,58 @@ def extract_artifacts(filename):
             ):
                 continue
 
-            artifacts.add(line)
+            artifacts.append(line)
 
     return artifacts
 
 
 def compare_all():
-    base_file = "result1.txt"
-    base_artifacts = extract_artifacts(base_file)
+
+    inputs = [name for name in os.listdir()
+              if os.path.isfile(name)
+              and name.startswith('result')
+              and name.endswith('.txt')]
+
+    inputs.sort(key=lambda x: int(''.join(filter(str.isdigit, x)) or 0))
 
     print("=" * 60)
     print("СРАВНЕНИЕ КОМАНД")
     print("=" * 60)
 
-    print(f"\nКоманда 1 нашла: {len(base_artifacts)} артефактов\n")
+    for i, filename in enumerate(inputs, 1):
+        artifacts = extract_artifacts(filename)
+        print(f"Команда {i} ({filename}): {len(artifacts)} артефактов")
 
-    for i in range(2, 11):
-        filename = f"result{i}.txt"
+    print()
 
-        if not os.path.exists(filename):
-            continue
+    for i in range(len(inputs) - 1):
+        file1 = inputs[i]
+        file2 = inputs[i + 1]
 
-        team_artifacts = extract_artifacts(filename)
+        artifacts1 = extract_artifacts(file1)
+        artifacts2 = extract_artifacts(file2)
 
-        common = base_artifacts & team_artifacts
-        only_base = base_artifacts - team_artifacts
-        only_other = team_artifacts - base_artifacts
+        common = [art for art in artifacts1 if art in artifacts2]
+        only_first = [art for art in artifacts1 if art not in artifacts2]
+        only_second = [art for art in artifacts2 if art not in artifacts1]
 
         print("-" * 60)
-        print(f"Сравнение result1.txt и {filename}")
-        print(f"У них найдено: {len(team_artifacts)}")
+        print(f"Сравнение {file1} и {file2}")
+        print(f"{file1}: {len(artifacts1)} артефактов")
+        print(f"{file2}: {len(artifacts2)} артефактов")
         print(f"Общие артефакты: {len(common)}")
-        print(f"Мы нашли, они нет: {len(only_base)}")
-        print(f"Они нашли, мы нет: {len(only_other)}")
+        print(f"Только в {file1}: {len(only_first)}")
+        print(f"Только в {file2}: {len(only_second)}")
 
-        if only_other:
-            print("\nПотери нашей команды:")
-            for item in sorted(only_other):
-                print(item)
+        if only_first:
+            print(f"\nЕсть в {file1}, нет в {file2}:")
+            for item in sorted(only_first):
+                print(f"  {item}")
+
+        if only_second:
+            print(f"\nЕсть в {file2}, нет в {file1}:")
+            for item in sorted(only_second):
+                print(f"  {item}")
 
     print("\n" + "=" * 60)
     print("Сравнение завершено")

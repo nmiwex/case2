@@ -63,6 +63,11 @@ def find_and_validate_credit_cards(numbers):
 
 
 def find_secrets(text):
+    """
+    Searches for API-keys, passwords and tokens
+    :param text: text to search in
+    :return: {'Api-keys':[], 'passwords':[], 'tokens':[]}
+    """
     patterns = {
         'password': re.compile(r'(?i)\b(password|passwd|pwd|парол\w*)\b\s*'
                                r'[:=]\s*["\']?([^"\']+)'), # пароли
@@ -90,6 +95,11 @@ def find_secrets(text):
 
 
 def find_system_info(text):
+    """
+    Searches for ips, files and emails
+    :param text: text to search in
+    :return: {'ips':[], 'files':[], 'emails':[]}
+    """
     patterns = {
         'ipv4': re.compile(r'\b(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}'
                            r'(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\b'), # ipv4 адреса

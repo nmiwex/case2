@@ -108,7 +108,7 @@ def find_system_info(text):
 
     for key, pattern in patterns.items():
         for match in pattern.finditer(main_text):
-             results[key].append(match.group())
+             add_unique(match.group(), results[key])
 
     return results
 
@@ -414,7 +414,7 @@ def print_report(report_data, file):
                 find_artifacts(item)
             return
         elif isinstance(art, str):
-            file.write(f'\n{art}')
+            file.write(f'\n{len(total_sum)+1}. {art}')
             total_sum.append(art)
 
 
@@ -422,7 +422,7 @@ def print_report(report_data, file):
         file.write(f'\n{title}:')
         find_artifacts(data)
         file.write('\n' + '-' * 30)
-    file.write(f'\n Найдено артефактов: {len(total_sum)}\n')
+    file.write(f'\n\tНайдено артефактов: {len(total_sum)} \n')
     file.write('=' * 50 + 'КОНЕЦ ОТЧЕТА' + '=' * 50)
 
 

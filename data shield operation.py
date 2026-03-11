@@ -45,19 +45,23 @@ def find_and_validate_credit_cards(numbers):
     """
     Searches for bank card numbers
     :param numbers: text to search in
-    :return: {'card numbers: {'valid': [], 'invalid': []}'}
+    :return: {'card numbers': {'valid': [], 'invalid': []}}
     """
     result = {'valid': [], 'invalid': []}
-    card_numbers = re.findall(r'(?<!\d)(\d{4}[\s./\\-]?\d{4}[\s./\\-]?\d{4}'
-                              r'[\s./\\-]?\d{4})(?!\d)', numbers)
+
+
+    card_numbers = re.findall(
+        r'(?<!\d)(\d{4}[\s./\\-]?\d{4}[\s./\\-]?\d{4}[\s./\\-]?\d{4})(?!\d)',
+        numbers
+    )
 
     for card in card_numbers:
         clean_card = re.sub(r'\D', '', card)
 
         if len(clean_card) == 16 and luhn_algorithm(clean_card):
-            result['valid'].append(clean_card)
+            add_unique(clean_card, result['valid'])
         else:
-            result['invalid'].append(clean_card)
+            add_unique(clean_card, result['invalid'])
 
     return result
 
